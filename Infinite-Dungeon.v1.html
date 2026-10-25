@@ -1,0 +1,3693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Infinite-Dungeon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        body {
+            overscroll-behavior: none;
+            touch-action: none;
+            background-color: #030712;
+            color: #f9fafb;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        .glow-title {
+            text-shadow: 0 0 25px rgba(59, 130, 246, 0.6), 0 0 50px rgba(147, 51, 234, 0.3);
+        }
+        .glow-box-blue {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+        }
+        .glow-box-purple {
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.25);
+        }
+        .glow-box-amber {
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col justify-between bg-slate-950">
+
+    <!-- HUD Header -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800/80 px-3 sm:px-5 py-2 flex justify-between items-center z-10 text-xs sm:text-sm">
+        <div class="flex items-center gap-2 sm:gap-4">
+            <button id="btn-open-pause" class="bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700 rounded-lg p-1.5 transition flex items-center justify-center">
+                <span class="text-base leading-none">⏸️</span>
+            </button>
+            <div class="flex items-center gap-1.5 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800/80">
+                <span class="text-slate-400 font-semibold">FLOOR</span> 
+                <span id="hud-floor" class="font-black text-amber-400 text-sm sm:text-base font-mono">1</span>
+            </div>
+            <div class="flex items-center gap-1.5 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-slate-800/80">
+                <span class="text-slate-400 font-semibold">LVL</span> 
+                <span id="hud-level" class="font-black text-blue-400 text-sm sm:text-base font-mono">1</span>
+            </div>
+        </div>
+
+        <!-- Vital Bars -->
+        <div class="flex items-center gap-2 sm:gap-3">
+            <!-- HP Bar -->
+            <div class="w-20 sm:w-32 bg-slate-950 rounded-full h-3.5 border border-slate-800 relative overflow-hidden shadow-inner">
+                <div id="hud-hp-bar" class="bg-gradient-to-r from-red-600 to-rose-500 h-full transition-all duration-150 rounded-full" style="width: 100%"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white drop-shadow font-mono" id="hud-hp-text">140/140</div>
+            </div>
+            <!-- Mana Bar -->
+            <div class="w-16 sm:w-28 bg-slate-950 rounded-full h-3.5 border border-slate-800 relative overflow-hidden shadow-inner">
+                <div id="hud-mana-bar" class="bg-gradient-to-r from-blue-600 to-cyan-400 h-full transition-all duration-150 rounded-full" style="width: 100%"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white drop-shadow font-mono" id="hud-mana-text">70/70</div>
+            </div>
+            <!-- XP Bar -->
+            <div class="w-16 sm:w-28 bg-slate-950 rounded-full h-3.5 border border-slate-800 relative overflow-hidden shadow-inner hidden md:block">
+                <div id="hud-xp-bar" class="bg-gradient-to-r from-emerald-600 to-teal-400 h-full transition-all duration-150 rounded-full" style="width: 0%"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white drop-shadow font-mono" id="hud-xp-text">0%</div>
+            </div>
+            <!-- Ultimate Bar -->
+            <div class="w-16 sm:w-24 bg-slate-950 rounded-full h-3.5 border border-purple-700/60 relative overflow-hidden shadow-inner">
+                <div id="hud-ult-bar" class="bg-gradient-to-r from-purple-600 to-fuchsia-400 h-full transition-all duration-150 rounded-full" style="width: 0%"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white drop-shadow font-mono" id="hud-ult-text">ULT</div>
+            </div>
+            <!-- Durability Bar -->
+            <div class="w-14 sm:w-20 bg-slate-950 rounded-full h-3.5 border border-amber-700/50 relative overflow-hidden shadow-inner" title="Equipment Durability">
+                <div id="hud-dur-bar" class="bg-gradient-to-r from-amber-600 to-yellow-400 h-full transition-all duration-150 rounded-full" style="width: 100%"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white drop-shadow font-mono" id="hud-dur-text">DUR</div>
+            </div>
+        </div>
+
+        <!-- Gold & Shop Trigger -->
+        <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 bg-slate-950/80 px-2.5 py-1 rounded-lg border border-amber-500/30">
+                <span class="text-amber-400 text-sm">🪙</span>
+                <span id="hud-gold" class="font-black text-amber-300 font-mono">0</span>
+            </div>
+            <button id="btn-open-shop" class="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg shadow-md transition active:scale-95 text-xs">
+                SHOP
+            </button>
+        </div>
+    </header>
+
+    <!-- Active Modifiers Banner -->
+    <div id="modifiers-banner" class="bg-rose-950/40 border-b border-rose-900/40 px-4 py-1 text-center text-[11px] text-rose-300 font-medium hidden">
+        <span class="font-bold tracking-wider text-rose-400">INFERNO:</span> <span id="modifiers-text">None</span>
+    </div>
+    <!-- Last Stand Banner -->
+    <div id="laststand-banner" class="bg-amber-950/50 border-b border-amber-600/50 px-4 py-1.5 text-center text-[12px] text-amber-300 font-black tracking-widest hidden animate-pulse">
+        <span id="laststand-text">⚡ LAST STAND ACTIVE</span>
+    </div>
+
+    <!-- Canvas Area -->
+    <main class="relative flex-1 bg-slate-950 overflow-hidden flex items-center justify-center">
+        <canvas id="gameCanvas" class="absolute inset-0 cursor-crosshair"></canvas>
+
+        <!-- Floor Cleared Overlay -->
+        <div id="floor-clear-overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center z-20 hidden">
+            <div class="bg-slate-900/90 border border-emerald-500/30 p-6 sm:p-8 rounded-3xl max-w-sm w-full text-center shadow-2xl mx-4 glow-box-purple">
+                <div class="text-4xl mb-2">✨</div>
+                <h2 class="text-2xl sm:text-3xl font-black text-emerald-400 mb-1 tracking-wide">FLOOR CLEARED!</h2>
+                <p class="text-slate-400 text-xs mb-6">All loot collected automatically. Ready for the next encounter?</p>
+                <div class="flex flex-col gap-3">
+                    <button id="btn-next-floor" class="w-full bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-slate-950 font-black py-3.5 px-4 rounded-xl shadow-lg transition active:scale-95 text-sm tracking-wider">
+                        PROCEED TO NEXT FLOOR ➔
+                    </button>
+                    <button id="btn-open-shop-from-clear" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl border border-slate-700 transition text-xs">
+                        Open Equipment Shop
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAIN MENU OVERLAY -->
+        <div id="start-screen" class="absolute inset-0 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-between z-30 p-4 sm:p-6 overflow-y-auto">
+            <div class="max-w-xl w-full flex flex-col items-center my-auto py-4">
+                
+                <!-- Badge & Title -->
+                <div class="inline-flex items-center gap-2 bg-blue-950/60 border border-blue-500/30 px-3 py-1 rounded-full text-blue-400 text-[11px] font-bold mb-3 tracking-widest uppercase">
+                    <span>🔷</span> Geometric Infinite Runner
+                </div>
+                <h1 class="text-3xl sm:text-5xl font-black text-white text-center tracking-tight mb-2 glow-title">
+                    GEOMETRIC DUNGEON
+                </h1>
+                <p class="text-slate-400 text-xs sm:text-sm text-center max-w-md mb-6">
+                    Bouncing geometric arena survival. Master high-speed vectors, special 3rd-attack mana procs, and infinite floor scaling.
+                </p>
+
+                <!-- High Score & Stats Summary -->
+                <div class="w-full grid grid-cols-3 gap-2 mb-6 bg-slate-900/80 border border-slate-800 p-3 rounded-2xl text-center text-xs">
+                    <div>
+                        <div class="text-slate-500 text-[10px] font-bold uppercase">Best Floor</div>
+                        <div id="stat-best-floor" class="text-amber-400 font-black text-base sm:text-lg font-mono">1</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-500 text-[10px] font-bold uppercase">Best Level</div>
+                        <div id="stat-best-level" class="text-blue-400 font-black text-base sm:text-lg font-mono">1</div>
+                    </div>
+                    <div>
+                        <div class="text-slate-500 text-[10px] font-bold uppercase">Total Kills</div>
+                        <div id="stat-total-kills" class="text-purple-400 font-black text-base sm:text-lg font-mono">0</div>
+                    </div>
+                </div>
+
+                <!-- Class Selection Cards -->
+                <div class="w-full mb-6">
+                    <label class="block text-xs font-black text-slate-400 mb-3 uppercase tracking-wider text-center">
+                        Select Combat Specialization
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <!-- Melee Card -->
+                        <div class="class-card bg-slate-900/80 border-2 border-purple-500/80 rounded-2xl p-3.5 cursor-pointer transition-all flex flex-col justify-between glow-box-purple" data-class="melee">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-2xl">⚔️</span>
+                                    <span class="bg-purple-950 text-purple-300 border border-purple-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full">MELEE</span>
+                                </div>
+                                <h3 class="font-black text-white text-sm mb-1">Blade Master</h3>
+                                <p class="text-slate-400 text-[11px] leading-snug mb-3">Frontal arc swipes with high lifesteal & close-range heavy damage.</p>
+                            </div>
+                            <div class="border-t border-slate-800/80 pt-2 text-[10px] text-slate-300 space-y-1">
+                                <div class="flex justify-between"><span class="text-slate-500">3rd:</span> <b class="text-purple-400">Stun Chain Lightning</b></div>
+                                <div class="flex justify-between"><span class="text-slate-500">On-Kill:</span> <b class="text-fuchsia-400">Execution Step</b></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Last Stand:</span> <b class="text-rose-400">Bloodburn</b></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Ultimate:</span> <b class="text-amber-400">Triple Sever</b></div>
+                            </div>
+                        </div>
+
+                        <!-- Bow Card -->
+                        <div class="class-card bg-slate-900/80 border-2 border-slate-800 rounded-2xl p-3.5 cursor-pointer transition-all flex flex-col justify-between hover:border-slate-700" data-class="bow">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-2xl">🏹</span>
+                                    <span class="bg-blue-950 text-blue-300 border border-blue-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full">BOW</span>
+                                </div>
+                                <h3 class="font-black text-white text-sm mb-1">Sharpshooter</h3>
+                                <p class="text-slate-400 text-[11px] leading-snug mb-3">High-speed decelerating arrows that hit with extreme impact.</p>
+                            </div>
+                            <div class="border-t border-slate-800/80 pt-2 text-[10px] text-slate-300 space-y-1">
+                                <div class="flex justify-between"><span class="text-slate-500">3rd:</span> <b class="text-blue-400">Vortex Grav Volley</b></div>
+                                <div class="flex justify-between"><span class="text-slate-500">On-Kill:</span> <b class="text-sky-400">Ricochet</b></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Last Stand:</span> <b class="text-cyan-400">Deadeye</b></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Ultimate:</span> <b class="text-blue-300">Killshot</b></div>
+                            </div>
+                        </div>
+
+                        <!-- Magic Card -->
+                        <div class="class-card bg-slate-900/80 border-2 border-slate-800 rounded-2xl p-3.5 cursor-pointer transition-all flex flex-col justify-between hover:border-slate-700" data-class="magic">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-2xl">🔮</span>
+                                    <span class="bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold px-2 py-0.5 rounded-full">MAGIC</span>
+                                </div>
+                                <h3 class="font-black text-white text-sm mb-1">Arcane Weaver</h3>
+                                <p class="text-slate-400 text-[11px] leading-snug mb-3">Rapid 3-round burst orbs with homing tracking & arena bounces.</p>
+                            </div>
+                            <div class="border-t border-slate-800/80 pt-2 text-[10px] text-slate-300 space-y-1">
+                                <div class="flex justify-between"><span class="text-slate-500">3rd:</span> <b class="text-cyan-400">High Bounce Orb</b></div>
+                                <div class="flex justify-between"><span class="text-slate-500">On-Kill:</span> <b class="text-violet-400">Arcane Fracture</b></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Last Stand:</span> <b class="text-teal-400">Mana Collapse</b></div>
+                                <div class="flex justify-between"><span class="text-slate-500">Ultimate:</span> <b class="text-cyan-300">Singularity</b></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button id="btn-start-game" class="w-full bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black py-4 px-6 rounded-2xl shadow-xl transition active:scale-98 text-sm uppercase tracking-wider glow-box-blue">
+                    ENTER DUNGEON RUN
+                </button>
+            </div>
+        </div>
+
+        <!-- PAUSE MENU OVERLAY -->
+        <div id="pause-modal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center z-40 p-4 hidden">
+            <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col gap-5">
+                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">⏸️</span>
+                        <h2 class="text-lg font-black text-white tracking-wide">GAME PAUSED</h2>
+                    </div>
+                    <button id="btn-resume-pause" class="text-slate-400 hover:text-white font-bold text-lg">✕</button>
+                </div>
+
+                <!-- Current Run Stats -->
+                <div class="bg-slate-950/80 rounded-2xl p-3.5 border border-slate-800/80 text-xs space-y-2">
+                    <div class="text-slate-400 font-bold uppercase text-[10px] mb-1">Current Run Stats</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="flex justify-between"><span class="text-slate-500">Class:</span> <span id="pause-class" class="font-bold text-purple-400 uppercase">MELEE</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Floor:</span> <span id="pause-floor" class="font-bold text-amber-400">1</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Level:</span> <span id="pause-level" class="font-bold text-blue-400">1</span></div>
+                        <div class="flex justify-between"><span class="text-slate-500">Gold:</span> <span id="pause-gold" class="font-bold text-yellow-400">0</span></div>
+                    </div>
+                </div>
+
+                <!-- Audio & Auto-Repair Toggles -->
+                <div class="space-y-2 text-xs">
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 flex justify-between items-center">
+                        <span class="font-bold text-slate-200">Auto-Repair Durability</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="pause-toggle-autorepair" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col gap-2.5 pt-2">
+                    <button id="btn-resume-game" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow transition active:scale-95 text-xs uppercase tracking-wider">
+                        Resume Dungeon
+                    </button>
+                    <button id="btn-abandon-run" class="w-full bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/50 font-bold py-2.5 rounded-xl transition text-xs">
+                        Abandon Run & Return to Main Menu
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME OVER OVERLAY -->
+        <div id="game-over-screen" class="absolute inset-0 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center z-40 p-6 text-center hidden">
+            <div class="max-w-sm w-full bg-slate-900 border border-rose-900/50 p-8 rounded-3xl shadow-2xl">
+                <div class="text-4xl mb-2">💀</div>
+                <h2 class="text-2xl font-black text-rose-500 mb-1">RUN TERMINATED</h2>
+                <p class="text-slate-400 text-xs mb-6">You perished in the geometric depths.</p>
+                
+                <div class="bg-slate-950/80 rounded-xl p-4 mb-6 border border-slate-800 text-xs space-y-2 text-left font-mono">
+                    <div class="flex justify-between"><span class="text-slate-400">Floors Survived:</span> <span id="go-floors" class="font-bold text-white">0</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">Final Level:</span> <span id="go-level" class="font-bold text-white">1</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">Gold Collected:</span> <span id="go-gold" class="font-bold text-amber-400">0</span></div>
+                </div>
+
+                <button id="btn-restart" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg transition active:scale-95 text-xs uppercase tracking-wider">
+                    TRY AGAIN
+                </button>
+            </div>
+        </div>
+
+        <!-- SHOP & UPGRADE MODAL -->
+        <div id="shop-modal" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center z-40 p-4 hidden">
+            <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                    <h2 class="text-base font-black text-amber-400 flex items-center gap-2 tracking-wide">🛠️ EQUIPMENT & UPGRADES</h2>
+                    <button id="btn-close-shop" class="text-slate-400 hover:text-white font-bold text-lg px-2">✕</button>
+                </div>
+
+                <div class="p-5 overflow-y-auto space-y-3.5 text-xs flex-1">
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                        <span class="text-slate-400 font-semibold">Available Gold:</span>
+                        <span id="shop-gold-display" class="font-black text-amber-400 text-base font-mono">🪙 0</span>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-white">Auto-Repair Equipment</div>
+                            <div class="text-[10px] text-slate-400">Auto repair after floor clear</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="toggle-autorepair" class="sr-only peer">
+                            <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                        </label>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-white">Manual Equipment Repair</div>
+                            <div id="durability-text" class="text-[10px] text-slate-400">Durability: 100%</div>
+                        </div>
+                        <button id="btn-repair" class="bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold px-3 py-1.5 rounded-lg border border-slate-700 transition">
+                            Repair (🪙 <span id="repair-cost">0</span>)
+                        </button>
+                    </div>
+
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-white">Reroll Class</div>
+                            <div class="text-[10px] text-slate-400">Switch weapon specialization</div>
+                        </div>
+                        <button id="btn-reroll-class" class="bg-purple-950/60 hover:bg-purple-900 text-purple-200 font-bold px-3 py-1.5 rounded-lg border border-purple-800 transition">
+                            Reroll (🪙 <span id="reroll-cost">50</span>)
+                        </button>
+                    </div>
+
+                    <div class="border-t border-slate-800 pt-3">
+                        <div class="font-bold text-slate-300 mb-2 uppercase tracking-wider text-[10px]">Stat Upgrades</div>
+                        <div class="space-y-2">
+                            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <div>
+                                    <div class="font-bold text-slate-200">Weapon Power (<span id="up-dmg-lvl">1</span>)</div>
+                                    <div class="text-[10px] text-slate-400">+15% Damage & +4% Fire Rate</div>
+                                </div>
+                                <button class="upgrade-btn bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg transition" data-upgrade="damage">
+                                    🪙 <span id="up-dmg-cost">20</span>
+                                </button>
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <div>
+                                    <div class="font-bold text-slate-200">Agility (<span id="up-spd-lvl">1</span>)</div>
+                                    <div class="text-[10px] text-slate-400">+10% Movement Speed</div>
+                                </div>
+                                <button class="upgrade-btn bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg transition" data-upgrade="speed">
+                                    🪙 <span id="up-spd-cost">20</span>
+                                </button>
+                            </div>
+                            <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <div>
+                                    <div class="font-bold text-slate-200">Vitality (<span id="up-hp-lvl">1</span>)</div>
+                                    <div class="text-[10px] text-slate-400">+25 Max HP & Immediate Heal</div>
+                                </div>
+                                <button class="upgrade-btn bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg transition" data-upgrade="hp">
+                                    🪙 <span id="up-hp-cost">25</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 border-t border-slate-800 bg-slate-900/50 flex justify-end">
+                    <button id="btn-close-shop-bottom" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-5 py-2 rounded-xl transition text-xs">
+                        Resume Run
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="notification-box" class="absolute top-16 left-1/2 -translate-x-1/2 bg-slate-900/95 border border-slate-700 px-4 py-2 rounded-xl shadow-xl text-xs font-bold text-white transition-all opacity-0 pointer-events-none z-50">
+            Notification
+        </div>
+    </main>
+
+    <footer class="bg-slate-900/90 border-t border-slate-800 px-4 py-2 flex justify-between items-center text-xs text-slate-400 z-10">
+        <div class="flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Arena Active • Touch / Drag to Move</span>
+        </div>
+        <div class="text-[11px] text-slate-500">
+            Wall Bounce Physics Engaged
+        </div>
+    </footer>
+
+    <script>
+        // --- GAME CONFIG & STATE ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Mobile-first portrait-friendly arena (fills phones with less letterboxing)
+        const ARENA_WIDTH = 720;
+        const ARENA_HEIGHT = 1100;
+
+        let gameRunning = false;
+        let gameOver = false;
+        let floorCleared = false;
+        let lastTime = 0;
+        let screenShakeTimer = 0;
+        let screenShakeIntensity = 0;
+
+        let stats = {
+            bestFloor: parseInt(localStorage.getItem('geo_best_floor') || '1'),
+            bestLevel: parseInt(localStorage.getItem('geo_best_level') || '1'),
+            totalKills: parseInt(localStorage.getItem('geo_total_kills') || '0')
+        };
+
+        // Player Data (tuned easier: more HP, regen, mana, base damage speed)
+        let player = {
+            x: ARENA_WIDTH / 2,
+            y: ARENA_HEIGHT / 2,
+            radius: 20,
+            color: '#3b82f6',
+            speed: 270,
+            maxHp: 140,
+            hp: 140,
+            maxMana: 70,
+            mana: 70,
+            manaRegen: 14,
+            hpRegen: 3.5,
+            lifesteal: 0.05,
+            level: 1,
+            xp: 0,
+            xpToNext: 80,
+            gold: 0,
+            classType: 'melee',
+            attackCooldown: 0,
+            attackSpeed: 1.45,
+            damageMult: 1.15,
+            speedMult: 1.0,
+            durability: 100,
+            autoRepair: false,
+            attackCount: 0,
+            // Class combat systems
+            ultCharge: 0,
+            ultMax: 20,
+            lastStandActive: false,
+            lastStandReady: true,
+            lastStandFloorsUntilReady: 0,
+            bloodburnDrain: 0,
+            deadeyeActive: false,
+            manaCollapseActive: false,
+            executionChain: 0,
+            ricochetChain: 0,
+            ultimateActive: false,
+            ultimateTimer: 0,
+            ultTelegraphs: [],
+            singularity: null,
+            killshotScar: null,
+            execShields: [],
+            execShieldFlash: 0,
+            invulnTimer: 0
+        };
+
+        let upgrades = {
+            damage: { level: 1, cost: 20 },
+            speed: { level: 1, cost: 20 },
+            hp: { level: 1, cost: 25 }
+        };
+
+        let currentFloor = 1;
+        let activeModifiers = [];
+        let enemies = [];
+        let projectiles = [];
+        let beams = [];
+        let beamTelegraphs = [];
+        let lootItems = [];
+        let particles = [];
+        let meleeVisuals = [];
+        let lightningEffects = [];
+        let floatingTexts = [];
+        let slashZones = [];
+        let teleportTrails = [];
+        let ultProjectiles = [];
+
+        let maxSimultaneousEnemies = 12;
+        let difficultyBudget = 14;
+
+        const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V'];
+
+        let touchJoystick = {
+            active: false,
+            startX: 0, startY: 0,
+            currentX: 0, currentY: 0,
+            vectorX: 0, vectorY: 0
+        };
+
+        const keysPressed = {};
+
+        // --- ENEMY SPECIES DEFINITIONS (easier baselines) ---
+        const ENEMY_SPECIES = {
+            goblin: {
+                name: 'Goblin', shape: 'triangle',
+                colorFamily: '#22c55e', strongColor: '#15803d',
+                baseHp: 12, baseDmg: 5, baseSpeed: 130, mass: 1.0, threatCost: 2,
+                behavior: 'chase', xpReward: 18, goldReward: 4
+            },
+            orc: {
+                name: 'Orc', shape: 'octagon',
+                colorFamily: '#f43f5e', strongColor: '#be123c',
+                baseHp: 70, baseDmg: 12, baseSpeed: 85, mass: 2.5, threatCost: 5,
+                behavior: 'charge', xpReward: 40, goldReward: 9
+            },
+            mage: {
+                name: 'Mage', shape: 'diamond',
+                colorFamily: '#eab308', strongColor: '#a16207',
+                baseHp: 45, baseDmg: 18, baseSpeed: 105, mass: 1.6, threatCost: 6,
+                behavior: 'beam', xpReward: 50, goldReward: 12
+            },
+            elf: {
+                name: 'Elf', shape: 'hexagon',
+                colorFamily: '#38bdf8', strongColor: '#0284c7',
+                baseHp: 32, baseDmg: 14, baseSpeed: 145, mass: 1.4, threatCost: 6,
+                behavior: 'tactical', xpReward: 55, goldReward: 14
+            }
+        };
+
+        // Faction Boss definitions
+        const BOSS_SPECIES = {
+            goblin_boss: {
+                name: 'Goblin Warlord', shape: 'triangle',
+                color: '#14532d',
+                baseHp: 420, baseDmg: 22, baseSpeed: 220, mass: 1.8, threatCost: 45,
+                behavior: 'goblin_boss', xpReward: 220, goldReward: 55, radius: 28
+            },
+            orc_boss: {
+                name: 'Orc Juggernaut', shape: 'octagon',
+                color: '#881337',
+                baseHp: 780, baseDmg: 34, baseSpeed: 105, mass: 4.2, threatCost: 58,
+                behavior: 'orc_boss', xpReward: 280, goldReward: 70, radius: 34
+            },
+            mage_boss: {
+                name: 'Arcane Archmage', shape: 'diamond',
+                color: '#854d0e',
+                baseHp: 480, baseDmg: 38, baseSpeed: 130, mass: 2.2, threatCost: 52,
+                behavior: 'mage_boss', xpReward: 260, goldReward: 65, radius: 30
+            },
+            elf_boss: {
+                name: 'Elf Shadowblade', shape: 'hexagon',
+                color: '#0c4a6e',
+                baseHp: 440, baseDmg: 28, baseSpeed: 180, mass: 1.9, threatCost: 55,
+                behavior: 'elf_boss', xpReward: 250, goldReward: 60, radius: 28
+            }
+        };
+
+        // Fallen templates
+        const FALLEN_TEMPLATES = {
+            melee: {
+                name: 'Fallen Blade Master', shape: 'square',
+                color: '#7c3aed', behavior: 'fallen_melee', threatCost: 70,
+                xpReward: 320, goldReward: 80, radius: 24
+            },
+            bow: {
+                name: 'Fallen Sharpshooter', shape: 'pentagon',
+                color: '#2563eb', behavior: 'fallen_bow', threatCost: 70,
+                xpReward: 320, goldReward: 80, radius: 22
+            },
+            magic: {
+                name: 'Fallen Arcane Weaver', shape: 'diamond',
+                color: '#0891b2', behavior: 'fallen_magic', threatCost: 70,
+                xpReward: 320, goldReward: 80, radius: 22
+            }
+        };
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function updateMainStatsUI() {
+            document.getElementById('stat-best-floor').innerText = stats.bestFloor;
+            document.getElementById('stat-best-level').innerText = stats.bestLevel;
+            document.getElementById('stat-total-kills').innerText = stats.totalKills;
+        }
+        updateMainStatsUI();
+
+        function showNotification(text) {
+            const box = document.getElementById('notification-box');
+            box.innerText = text;
+            box.style.opacity = '1';
+            setTimeout(() => { box.style.opacity = '0'; }, 2500);
+        }
+
+        function triggerScreenShake(intensity = 5, duration = 0.2) {
+            screenShakeIntensity = intensity;
+            screenShakeTimer = duration;
+        }
+
+        function spawnFloatingText(x, y, text, color = '#ffffff') {
+            floatingTexts.push({
+                x: x, y: y, text: text, color: color,
+                life: 0.8, maxLife: 0.8, vy: -30
+            });
+        }
+
+        // --- INPUT LISTENERS ---
+        window.addEventListener('keydown', (e) => { 
+            keysPressed[e.key.toLowerCase()] = true; 
+            if (e.key === 'Escape' && gameRunning && !gameOver) {
+                togglePause();
+            }
+        });
+        window.addEventListener('keyup', (e) => { keysPressed[e.key.toLowerCase()] = false; });
+
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = ARENA_WIDTH / canvas.width;
+            const scaleY = ARENA_HEIGHT / canvas.height;
+            const clientX = (e.clientX - rect.left) * scaleX;
+            const clientY = (e.clientY - rect.top) * scaleY;
+
+            touchJoystick.active = true;
+            touchJoystick.startX = clientX;
+            touchJoystick.startY = clientY;
+            touchJoystick.currentX = clientX;
+            touchJoystick.currentY = clientY;
+            touchJoystick.vectorX = 0;
+            touchJoystick.vectorY = 0;
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!touchJoystick.active) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = ARENA_WIDTH / canvas.width;
+            const scaleY = ARENA_HEIGHT / canvas.height;
+            const clientX = (e.clientX - rect.left) * scaleX;
+            const clientY = (e.clientY - rect.top) * scaleY;
+
+            touchJoystick.currentX = clientX;
+            touchJoystick.currentY = clientY;
+
+            let dx = clientX - touchJoystick.startX;
+            let dy = clientY - touchJoystick.startY;
+            let dist = Math.hypot(dx, dy);
+            let maxDist = 60;
+
+            if (dist > 0) {
+                let clampedDist = Math.min(dist, maxDist);
+                touchJoystick.vectorX = (dx / dist) * (clampedDist / maxDist);
+                touchJoystick.vectorY = (dy / dist) * (clampedDist / maxDist);
+            }
+        });
+
+        window.addEventListener('pointerup', () => {
+            touchJoystick.active = false;
+            touchJoystick.vectorX = 0;
+            touchJoystick.vectorY = 0;
+        });
+
+        // --- MENU CLASS SELECTOR ---
+        document.querySelectorAll('.class-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                document.querySelectorAll('.class-card').forEach(c => {
+                    c.classList.remove('border-purple-500/80', 'glow-box-purple');
+                    c.classList.add('border-slate-800');
+                });
+                const target = e.currentTarget;
+                target.classList.remove('border-slate-800');
+                target.classList.add('border-purple-500/80', 'glow-box-purple');
+                player.classType = target.getAttribute('data-class');
+            });
+        });
+
+        document.getElementById('btn-start-game').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.add('hidden');
+            initNewRun();
+            gameRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        });
+
+        // --- PAUSE MENU LOGIC ---
+        function togglePause() {
+            if (gameOver || floorCleared) return;
+            gameRunning = !gameRunning;
+            const pauseModal = document.getElementById('pause-modal');
+            if (!gameRunning) {
+                document.getElementById('pause-class').innerText = player.classType.toUpperCase();
+                document.getElementById('pause-floor').innerText = currentFloor;
+                document.getElementById('pause-level').innerText = player.level;
+                document.getElementById('pause-gold').innerText = player.gold;
+                document.getElementById('pause-toggle-autorepair').checked = player.autoRepair;
+                pauseModal.classList.remove('hidden');
+            } else {
+                pauseModal.classList.add('hidden');
+                lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        document.getElementById('btn-open-pause').addEventListener('click', togglePause);
+        document.getElementById('btn-resume-pause').addEventListener('click', togglePause);
+        document.getElementById('btn-resume-game').addEventListener('click', togglePause);
+        document.getElementById('pause-toggle-autorepair').addEventListener('change', (e) => {
+            player.autoRepair = e.target.checked;
+            document.getElementById('toggle-autorepair').checked = player.autoRepair;
+        });
+
+        document.getElementById('btn-abandon-run').addEventListener('click', () => {
+            document.getElementById('pause-modal').classList.add('hidden');
+            gameRunning = false;
+            document.getElementById('start-screen').classList.remove('hidden');
+        });
+
+        // --- RUN & FLOOR INITIALIZATION ---
+        function initNewRun() {
+            player.level = 1;
+            player.xp = 0;
+            player.xpToNext = 100;
+            player.gold = 0;
+            player.maxHp = 140;
+            player.hp = 140;
+            player.maxMana = 70;
+            player.mana = 70;
+            player.durability = 100;
+            player.attackCount = 0;
+            player.damageMult = 1.15;
+            player.speedMult = 1.0;
+            player.attackSpeed = 1.45;
+            player.lifesteal = player.classType === 'melee' ? 0.14 : 0.06;
+            resetClassCombatState();
+            currentFloor = 1;
+            upgrades = {
+                damage: { level: 1, cost: 20 },
+                speed: { level: 1, cost: 20 },
+                hp: { level: 1, cost: 25 }
+            };
+            startFloor(currentFloor);
+        }
+
+        function getModifierTier(floorNum, baseFloor, maxTier = 5) {
+            if (floorNum < baseFloor) return 0;
+            let tier = 1 + Math.floor((floorNum - baseFloor) / 4.5);
+            return Math.min(maxTier, tier);
+        }
+
+        function getModTier(name) {
+            let m = activeModifiers.find(x => x.name === name);
+            return m ? m.tier : 0;
+        }
+
+        function startFloor(floorNum) {
+            currentFloor = floorNum;
+            floorCleared = false;
+            enemies = [];
+            projectiles = [];
+            beams = [];
+            beamTelegraphs = [];
+            lootItems = [];
+            particles = [];
+            meleeVisuals = [];
+            lightningEffects = [];
+            floatingTexts = [];
+            slashZones = [];
+            teleportTrails = [];
+            ultProjectiles = [];
+            // Hard-clear transient combat defenses (preserve ult charge, LS countdown, stats)
+            player.ultimateActive = false;
+            player.ultimateTimer = 0;
+            player.ultTelegraphs = [];
+            player.singularity = null;
+            player.killshotScar = null;
+            player.invulnTimer = 0;
+            player.execShields = [];
+            player.execShieldFlash = 0;
+            // End active Last Stand visuals/modifiers between floors (countdown preserved elsewhere)
+            if (player.lastStandActive) {
+                player.lastStandActive = false;
+                player.deadeyeActive = false;
+                player.manaCollapseActive = false;
+                const lsBanner = document.getElementById('laststand-banner');
+                if (lsBanner) lsBanner.classList.add('hidden');
+            }
+
+            player.x = ARENA_WIDTH / 2;
+            player.y = ARENA_HEIGHT / 2;
+
+            // Inferno ranked modifiers (I-V)
+            activeModifiers = [];
+            const modDefs = [
+                { name: 'Haste', base: 4 },
+                { name: 'Armored', base: 6 },
+                { name: 'Swarm', base: 7 },
+                { name: 'Vampiric', base: 9 },
+                { name: 'Regenerating', base: 10 },
+                { name: 'Volatile', base: 11 },
+                { name: 'Erratic', base: 13 },
+                { name: 'Shielded', base: 15 }
+            ];
+            for (let m of modDefs) {
+                let tier = getModifierTier(floorNum, m.base);
+                if (tier > 0) {
+                    activeModifiers.push({ name: m.name, tier: tier, roman: ROMAN[tier] });
+                }
+            }
+
+            const banner = document.getElementById('modifiers-banner');
+            const modText = document.getElementById('modifiers-text');
+            if (activeModifiers.length > 0) {
+                banner.classList.remove('hidden');
+                modText.innerText = activeModifiers.map(m => `${m.name.toUpperCase()} ${m.roman}`).join(' • ');
+            } else {
+                banner.classList.add('hidden');
+            }
+
+            // Scalable difficulty budget focused on quality
+            let baseBudget = 12 + floorNum * 6.5 + Math.min(80, player.level * 0.35);
+            let swarmTier = getModTier('Swarm');
+            if (swarmTier > 0) baseBudget *= (1 + 0.12 * swarmTier);
+            difficultyBudget = Math.round(baseBudget);
+            maxSimultaneousEnemies = 10 + Math.min(6, Math.floor(floorNum / 8)) + (swarmTier > 0 ? Math.min(4, swarmTier) : 0);
+
+            spawnEncounter(difficultyBudget);
+            updateHUD();
+
+            if (currentFloor > stats.bestFloor) {
+                stats.bestFloor = currentFloor;
+                localStorage.setItem('geo_best_floor', stats.bestFloor.toString());
+                updateMainStatsUI();
+            }
+        }
+
+        // --- ENCOUNTER DIRECTOR ---
+        function spawnEncounter(budget) {
+            let remaining = budget;
+            const speciesKeys = Object.keys(ENEMY_SPECIES);
+
+            let bossChance = Math.min(0.55, 0.08 + currentFloor * 0.012);
+            let fallenChance = Math.min(0.40, Math.max(0, (currentFloor - 12) * 0.018 + (player.level > 30 ? 0.05 : 0)));
+
+            if (currentFloor >= 8 && Math.random() < bossChance && remaining > 40) {
+                let bossKeys = Object.keys(BOSS_SPECIES);
+                let bKey = bossKeys[Math.floor(Math.random() * bossKeys.length)];
+                let boss = createBoss(bKey);
+                if (boss) {
+                    enemies.push(boss);
+                    remaining -= BOSS_SPECIES[bKey].threatCost;
+                }
+            }
+
+            if (currentFloor >= 14 && Math.random() < fallenChance && remaining > 55 && enemies.length < maxSimultaneousEnemies) {
+                let fClasses = ['melee', 'bow', 'magic'];
+                if (Math.random() < 0.6) {
+                    fClasses = fClasses.filter(c => c !== player.classType);
+                    if (fClasses.length === 0) fClasses = ['melee', 'bow', 'magic'];
+                }
+                let fClass = fClasses[Math.floor(Math.random() * fClasses.length)];
+                let fallen = createFallen(fClass);
+                if (fallen) {
+                    enemies.push(fallen);
+                    remaining -= FALLEN_TEMPLATES[fClass].threatCost;
+                }
+            }
+
+            while (remaining > 1 && enemies.length < maxSimultaneousEnemies) {
+                let preferStrong = Math.random() < Math.min(0.55, 0.15 + currentFloor * 0.012);
+                let sKey = speciesKeys[Math.floor(Math.random() * speciesKeys.length)];
+                let baseSpec = ENEMY_SPECIES[sKey];
+                let cost = preferStrong ? Math.round(baseSpec.threatCost * 1.9) : baseSpec.threatCost;
+                if (remaining < cost && !preferStrong) break;
+                if (remaining < cost) { preferStrong = false; cost = baseSpec.threatCost; }
+                if (remaining < cost) break;
+                remaining -= cost;
+                let enemy = createRegularEnemy(sKey, preferStrong);
+                if (enemy) enemies.push(enemy);
+            }
+        }
+
+        function createRegularEnemy(sKey, isStrong) {
+            const baseSpec = ENEMY_SPECIES[sKey];
+            let variantLevel = Math.max(1, Math.floor(player.level * 0.65 + (currentFloor - 1) * 0.6));
+            if (isStrong) variantLevel += 2;
+
+            let hasteTier = getModTier('Haste');
+            let armoredTier = getModTier('Armored');
+            let swarmTier = getModTier('Swarm');
+            let vampTier = getModTier('Vampiric');
+            let regenTier = getModTier('Regenerating');
+            let shieldedTier = getModTier('Shielded');
+
+            let speedMultiplier = 1.0 + hasteTier * 0.09;
+            let hpMultiplier = (isStrong ? 1.85 : 1.0) * (1 + armoredTier * 0.14);
+            if (swarmTier > 0) hpMultiplier *= (1 - 0.06 * swarmTier);
+            let dmgMultiplier = (isStrong ? 1.4 : 1.0) * (1 + vampTier * 0.11);
+
+            let angle = Math.random() * Math.PI * 2;
+            let dist = 220 + Math.random() * 280;
+            let ex = Math.max(50, Math.min(ARENA_WIDTH - 50, ARENA_WIDTH / 2 + Math.cos(angle) * dist));
+            let ey = Math.max(50, Math.min(ARENA_HEIGHT - 50, ARENA_HEIGHT / 2 + Math.sin(angle) * dist));
+
+            let finalHp = Math.round(baseSpec.baseHp * (1 + (variantLevel - 1) * 0.20) * hpMultiplier);
+
+            return {
+                species: sKey,
+                name: (isStrong ? 'Brute ' : '') + baseSpec.name,
+                shape: baseSpec.shape,
+                color: isStrong ? baseSpec.strongColor : baseSpec.colorFamily,
+                isStrong: isStrong, isBoss: false, isFallen: false,
+                level: variantLevel, x: ex, y: ey,
+                vx: (Math.random() - 0.5) * 80, vy: (Math.random() - 0.5) * 80,
+                radius: isStrong ? 22 : 16,
+                maxHp: finalHp, hp: finalHp,
+                damage: Math.round(baseSpec.baseDmg * (1 + (variantLevel - 1) * 0.16) * dmgMultiplier),
+                speed: Math.min(260, baseSpec.baseSpeed * speedMultiplier),
+                mass: baseSpec.mass, behavior: baseSpec.behavior,
+                xpReward: Math.round(baseSpec.xpReward * (1 + (variantLevel - 1) * 0.16) * (isStrong ? 1.6 : 1)),
+                goldReward: Math.round(baseSpec.goldReward * (1 + (variantLevel - 1) * 0.13) * (isStrong ? 1.5 : 1)),
+                attackTimer: Math.random() * 2.5, dodgeCooldown: 0, shieldTimer: 0, stunTimer: 0,
+                abilityProcsLeft: sKey === 'elf' ? 2 + Math.floor(currentFloor / 15) : 0,
+                regenRate: regenTier > 0 ? (finalHp * (0.025 + regenTier * 0.012)) : 0,
+                erraticTimer: 0,
+                shieldCycle: shieldedTier > 0 ? (2.2 - shieldedTier * 0.15 + Math.random() * 1.5) : 0,
+                percentDamage: 0, specialCooldown: 0
+            };
+        }
+
+        function createBoss(bKey) {
+            const spec = BOSS_SPECIES[bKey];
+            let variantLevel = Math.max(3, Math.floor(player.level * 0.55 + currentFloor * 0.7));
+            let hasteTier = getModTier('Haste');
+            let armoredTier = getModTier('Armored');
+            let vampTier = getModTier('Vampiric');
+            let regenTier = getModTier('Regenerating');
+
+            let hpMult = (1 + armoredTier * 0.12) * (1 + (variantLevel - 1) * 0.12);
+            let finalHp = Math.round(spec.baseHp * hpMult);
+
+            let angle = Math.random() * Math.PI * 2;
+            let dist = 280 + Math.random() * 200;
+            let ex = Math.max(60, Math.min(ARENA_WIDTH - 60, ARENA_WIDTH / 2 + Math.cos(angle) * dist));
+            let ey = Math.max(60, Math.min(ARENA_HEIGHT - 60, ARENA_HEIGHT / 2 + Math.sin(angle) * dist));
+
+            return {
+                species: bKey, name: spec.name, shape: spec.shape, color: spec.color,
+                isStrong: true, isBoss: true, isFallen: false, level: variantLevel,
+                x: ex, y: ey, vx: 0, vy: 0, radius: spec.radius,
+                maxHp: finalHp, hp: finalHp,
+                damage: Math.round(spec.baseDmg * (1 + (variantLevel - 1) * 0.12) * (1 + vampTier * 0.08)),
+                speed: Math.min(240, spec.baseSpeed * (1 + hasteTier * 0.07)),
+                mass: spec.mass, behavior: spec.behavior,
+                xpReward: Math.round(spec.xpReward * (1 + variantLevel * 0.08)),
+                goldReward: Math.round(spec.goldReward * (1 + variantLevel * 0.06)),
+                attackTimer: 1.5 + Math.random(), dodgeCooldown: 0, shieldTimer: 0, stunTimer: 0,
+                abilityProcsLeft: 3 + Math.floor(currentFloor / 10),
+                regenRate: regenTier > 0 ? finalHp * (0.015 + regenTier * 0.008) : finalHp * 0.008,
+                erraticTimer: 0, shieldCycle: 4 + Math.random() * 2,
+                percentDamage: 0.045 + Math.min(0.055, currentFloor * 0.002),
+                phase: 0, specialCooldown: 0
+            };
+        }
+
+        function createFallen(classType) {
+            const tmpl = FALLEN_TEMPLATES[classType];
+            let playerEffectiveDmg = 24 * player.damageMult * (1 + (upgrades.damage.level - 1) * 0.15);
+            let playerAtkSpd = player.attackSpeed * (1 + Math.log2(1 + player.level / 8) * 0.55) * (1 + (upgrades.damage.level - 1) * 0.04);
+            let scaledHp = Math.round(player.maxHp * (0.70 + Math.min(1.35, player.level / 100)));
+            let scaledDmg = Math.round(playerEffectiveDmg * (0.55 + Math.min(0.85, player.level / 150)));
+            let scaledSpeed = 140 + Math.min(90, player.speedMult * 40);
+
+            let angle = Math.random() * Math.PI * 2;
+            let dist = 300 + Math.random() * 180;
+            let ex = Math.max(60, Math.min(ARENA_WIDTH - 60, ARENA_WIDTH / 2 + Math.cos(angle) * dist));
+            let ey = Math.max(60, Math.min(ARENA_HEIGHT - 60, ARENA_HEIGHT / 2 + Math.sin(angle) * dist));
+
+            return {
+                species: 'fallen_' + classType, name: tmpl.name, shape: tmpl.shape, color: tmpl.color,
+                isStrong: true, isBoss: false, isFallen: true, fallenClass: classType,
+                level: player.level, x: ex, y: ey, vx: 0, vy: 0, radius: tmpl.radius,
+                maxHp: scaledHp, hp: scaledHp, damage: scaledDmg, speed: scaledSpeed, mass: 2.0,
+                behavior: tmpl.behavior,
+                xpReward: Math.round(tmpl.xpReward * (1 + player.level * 0.02)),
+                goldReward: Math.round(tmpl.goldReward * (1 + player.level * 0.015)),
+                attackTimer: 0.8, dodgeCooldown: 0, shieldTimer: 0, stunTimer: 0,
+                abilityProcsLeft: 4, regenRate: scaledHp * 0.012, erraticTimer: 0, shieldCycle: 0,
+                percentDamage: 0.028,
+                lifesteal: Math.min(0.20, 0.08 + player.lifesteal * 0.4),
+                attackSpeed: Math.min(4.5, playerAtkSpd * 0.55),
+                attackCount: 0, specialCooldown: 0,
+                parryWindow: 0, parryCooldown: 1.5 + Math.random(),
+                ultCharge: 0, ultMax: 18, lastStandActive: false, lastStandReady: true
+            };
+        }
+
+        function addXP(amount) {
+            player.xp += amount;
+            while (player.xp >= player.xpToNext) {
+                player.xp -= player.xpToNext;
+                player.level++;
+                player.maxHp += 20;
+                player.hp = Math.min(player.maxHp, player.hp + 35);
+                player.maxMana += 12;
+                player.mana = player.maxMana;
+                showNotification(`Level Up! Reached Level ${player.level}`);
+
+                if (player.level > stats.bestLevel) {
+                    stats.bestLevel = player.level;
+                    localStorage.setItem('geo_best_level', stats.bestLevel.toString());
+                    updateMainStatsUI();
+                }
+
+                if (player.level <= 5) player.xpToNext = Math.round(player.xpToNext * 1.3);
+                else if (player.level <= 15) player.xpToNext = Math.round(player.xpToNext * 1.5);
+                else player.xpToNext = 2500;
+            }
+            updateHUD();
+        }
+
+        // --- UPDATE LOOP ---
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+
+            let dt = (timestamp - lastTime) / 1000;
+            if (dt > 0.1) dt = 0.1;
+            lastTime = timestamp;
+
+            update(dt);
+            render();
+
+            if (gameRunning) {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function update(dt) {
+            if (gameOver || floorCleared) return;
+
+            if (screenShakeTimer > 0) screenShakeTimer -= dt;
+
+            // Last Stand threshold checks
+            checkLastStand();
+
+            if (enemies.length > 0 && !player.lastStandActive) {
+                player.hp = Math.min(player.maxHp, player.hp + player.hpRegen * dt);
+            }
+            // Mana regen (disabled during Bloodburn, boosted during Mana Collapse)
+            if (player.manaCollapseActive) {
+                // Net drain without kills: ~28% maxMana/sec. No passive regen.
+                // Kill mana-on-kill is the only way to extend Collapse.
+                player.mana = Math.max(0, player.mana - player.maxMana * 0.28 * dt);
+                if (player.mana <= 0) {
+                    player.manaCollapseActive = false;
+                    player.lastStandActive = false;
+                    player.invulnTimer = 0;
+                    document.getElementById('laststand-banner').classList.add('hidden');
+                    spawnFloatingText(player.x, player.y, "MANA COLLAPSE ENDED", "#22d3ee");
+                }
+            } else if (!player.lastStandActive || player.classType !== 'melee') {
+                player.mana = Math.min(player.maxMana, player.mana + player.manaRegen * dt);
+            }
+
+            // Bloodburn continuous HP drain
+            if (player.lastStandActive && player.classType === 'melee') {
+                if (Number.isFinite(player.hp) && Number.isFinite(player.maxHp)) {
+                    player.hp -= player.maxHp * 0.03 * dt;
+                    if (player.hp <= 0) { player.hp = 0; triggerGameOver(); }
+                }
+            }
+
+            // Execution shields decay
+            if (player.execShields && player.execShields.length > 0) {
+                for (let i = player.execShields.length - 1; i >= 0; i--) {
+                    player.execShields[i].life -= dt;
+                    if (player.execShields[i].life <= 0) player.execShields.splice(i, 1);
+                }
+            }
+            if (player.execShieldFlash > 0) player.execShieldFlash -= dt;
+            if (player.invulnTimer > 0) { player.invulnTimer = Math.max(0, player.invulnTimer - dt); }
+
+            // Ultimate tick
+            updateUltimate(dt);
+
+            // Player Manual Movement
+            let moveX = 0, moveY = 0;
+            if (keysPressed['w'] || keysPressed['arrowup']) moveY -= 1;
+            if (keysPressed['s'] || keysPressed['arrowdown']) moveY += 1;
+            if (keysPressed['a'] || keysPressed['arrowleft']) moveX -= 1;
+            if (keysPressed['d'] || keysPressed['arrowright']) moveX += 1;
+
+            if (touchJoystick.active) {
+                moveX = touchJoystick.vectorX;
+                moveY = touchJoystick.vectorY;
+            }
+
+            let currentSpeed = player.speed * player.speedMult;
+            if (player.deadeyeActive) currentSpeed *= 0.65;
+            if (moveX !== 0 || moveY !== 0) {
+                let len = Math.hypot(moveX, moveY);
+                if (len > 0) {
+                    let normX = touchJoystick.active ? moveX : moveX / len;
+                    let normY = touchJoystick.active ? moveY : moveY / len;
+                    player.x += normX * currentSpeed * dt;
+                    player.y += normY * currentSpeed * dt;
+                }
+            }
+
+            // Player Wall Bounds
+            if (player.x - player.radius < 0) player.x = player.radius;
+            else if (player.x + player.radius > ARENA_WIDTH) player.x = ARENA_WIDTH - player.radius;
+            if (player.y - player.radius < 0) player.y = player.radius;
+            else if (player.y + player.radius > ARENA_HEIGHT) player.y = ARENA_HEIGHT - player.radius;
+
+            // Attack Speed Scaling (Levels + Weapon Upgrades)
+            player.attackCooldown -= dt;
+            if (player.attackCooldown <= 0) {
+                triggerPlayerAttack();
+
+                // Sustainable log curve with soft caps
+                let levelFireRateMult = 1 + Math.log2(1 + player.level / 6) * 0.65;
+                levelFireRateMult = Math.min(9.5, levelFireRateMult);
+                let weaponUpgradeFireRateBonus = 1 + (upgrades.damage.level - 1) * 0.04;
+                let effectiveAttackSpeed = player.attackSpeed * levelFireRateMult * weaponUpgradeFireRateBonus;
+                if (player.lastStandActive && player.classType === 'melee') effectiveAttackSpeed *= 2.0; // Bloodburn
+                effectiveAttackSpeed = Math.min(22, effectiveAttackSpeed);
+                player.attackCooldown = 1 / effectiveAttackSpeed;
+            }
+
+            // --- PROJECTILES ---
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                let p = projectiles[i];
+
+                if (p.isVortex && p.isPlayer) {
+                    for (let j = 0; j < enemies.length; j++) {
+                        let e = enemies[j];
+                        let distToProj = Math.hypot(e.x - p.x, e.y - p.y);
+                        let vortexRadius = 180;
+                        if (distToProj < vortexRadius) {
+                            let pullForce = (1 - distToProj / vortexRadius) * 450 * dt;
+                            let pullAngle = Math.atan2(p.y - e.y, p.x - e.x);
+                            e.vx += Math.cos(pullAngle) * pullForce;
+                            e.vy += Math.sin(pullAngle) * pullForce;
+                            if (Math.random() < 0.2) spawnParticles(e.x, e.y, '#38bdf8', 1);
+                        }
+                    }
+                }
+
+                if (p.isBow) {
+                    let speed = Math.hypot(p.vx, p.vy);
+                    if (p.initialSpeed === undefined) p.initialSpeed = speed || 900;
+                    if (speed > 80) {
+                        let friction = p.isVortex ? 0.18 : 0.60;
+                        if (player.deadeyeActive) friction *= 0.22;
+                        p.vx -= p.vx * friction * dt;
+                        p.vy -= p.vy * friction * dt;
+                        // Slow arrows hit harder (up to +35% at near-stop)
+                        let slowRatio = 1 - Math.min(1, speed / (p.initialSpeed || 900));
+                        p.damage = (p.baseDamage || p.damage) * (1 + slowRatio * 0.35);
+                    }
+                    // Vortex pull along path
+                    if (p.isVortex) {
+                        if (p.isPlayer) {
+                            for (let en of enemies) {
+                                if (en._dead) continue;
+                                let d = Math.hypot(en.x - p.x, en.y - p.y);
+                                if (d < (p.vortexRadius || 90) && d > 1) {
+                                    let pull = (1 - d / (p.vortexRadius || 90)) * (p.vortexPull || 280) * dt;
+                                    en.vx += ((p.x - en.x) / d) * pull;
+                                    en.vy += ((p.y - en.y) / d) * pull;
+                                }
+                            }
+                        } else {
+                            let d = Math.hypot(player.x - p.x, player.y - p.y);
+                            if (d < (p.vortexRadius || 100) && d > 1) {
+                                let pull = (1 - d / (p.vortexRadius || 100)) * (p.vortexPull || 300) * dt;
+                                player.x += ((p.x - player.x) / d) * pull * 0.35;
+                                player.y += ((p.y - player.y) / d) * pull * 0.35;
+                            }
+                        }
+                    }
+                }
+                // Magic: homing + singularity influence
+                if (p.isMagic && p.isPlayer) {
+                    let hs = p.homeStrength || 0.08;
+                    if (p.isHoming || player.manaCollapseActive) {
+                        let nearest = getNearestEnemy();
+                        if (nearest) {
+                            let ang = Math.atan2(nearest.y - p.y, nearest.x - p.x);
+                            let spd = Math.hypot(p.vx, p.vy) || 400;
+                            p.vx = p.vx * (1 - hs) + Math.cos(ang) * spd * hs;
+                            p.vy = p.vy * (1 - hs) + Math.sin(ang) * spd * hs;
+                        }
+                    }
+                    // Singularity: strong pull, speed boost, aggressive home (keeps bounce/pierce/fracture)
+                    if (player.singularity) {
+                        let s = player.singularity;
+                        let d = Math.hypot(s.x - p.x, s.y - p.y) || 1;
+                        p.vx += ((s.x - p.x) / d) * 280 * dt;
+                        p.vy += ((s.y - p.y) / d) * 280 * dt;
+                        // Faster flight during ult
+                        let curSpd = Math.hypot(p.vx, p.vy) || 400;
+                        let targetSpd = Math.max(curSpd, 520);
+                        if (curSpd > 1 && curSpd < targetSpd) {
+                            p.vx = (p.vx / curSpd) * (curSpd + (targetSpd - curSpd) * 3 * dt);
+                            p.vy = (p.vy / curSpd) * (curSpd + (targetSpd - curSpd) * 3 * dt);
+                        }
+                        // High homing while Singularity active
+                        let nearest = getNearestEnemy();
+                        if (nearest) {
+                            let ang = Math.atan2(nearest.y - p.y, nearest.x - p.x);
+                            let spd = Math.hypot(p.vx, p.vy) || 520;
+                            let track = 0.28;
+                            p.vx = p.vx * (1 - track) + Math.cos(ang) * spd * track;
+                            p.vy = p.vy * (1 - track) + Math.sin(ang) * spd * track;
+                        }
+                        if (!p.singularityRefreshed) {
+                            p.life = Math.max(p.life, 2.2);
+                            p.bouncesLeft = (p.bouncesLeft || 0) + 2;
+                            p.pierces = (p.pierces || 1) + 1;
+                            p.homeStrength = Math.max(p.homeStrength || 0.1, 0.22);
+                            p.isHoming = true;
+                            p.canFracture = true;
+                            p.singularityRefreshed = true;
+                            // Kick speed immediately
+                            let s0 = Math.hypot(p.vx, p.vy) || 400;
+                            p.vx = (p.vx / s0) * 560;
+                            p.vy = (p.vy / s0) * 560;
+                        }
+                    }
+                }
+
+                if (p.isMagic && p.isHoming) {
+                    let target = getNearestEnemy();
+                    if (target) {
+                        let targetAngle = Math.atan2(target.y - p.y, target.x - p.x);
+                        let currentAngle = Math.atan2(p.vy, p.vx);
+                        let currentSpeed = Math.hypot(p.vx, p.vy);
+
+                        let diff = targetAngle - currentAngle;
+                        while (diff < -Math.PI) diff += Math.PI * 2;
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+
+                        let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), 5.0 * dt);
+                        p.vx = Math.cos(newAngle) * currentSpeed;
+                        p.vy = Math.sin(newAngle) * currentSpeed;
+                    }
+                }
+
+                
+                if (p.isFallenHoming) {
+                    let targetAngle = Math.atan2(player.y - p.y, player.x - p.x);
+                    let currentAngle = Math.atan2(p.vy, p.vx);
+                    let currentSpeed = Math.hypot(p.vx, p.vy);
+                    let diff = targetAngle - currentAngle;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    let newAngle = currentAngle + Math.sign(diff) * Math.min(Math.abs(diff), 3.2 * dt);
+                    p.vx = Math.cos(newAngle) * currentSpeed;
+                    p.vy = Math.sin(newAngle) * currentSpeed;
+                }
+
+p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.life -= dt;
+
+                let bounced = false;
+                if (p.x - p.radius < 0) { p.x = p.radius; p.vx *= -1; bounced = true; }
+                else if (p.x + p.radius > ARENA_WIDTH) { p.x = ARENA_WIDTH - p.radius; p.vx *= -1; bounced = true; }
+                if (p.y - p.radius < 0) { p.y = p.radius; p.vy *= -1; bounced = true; }
+                else if (p.y + p.radius > ARENA_HEIGHT) { p.y = ARENA_HEIGHT - p.radius; p.vy *= -1; bounced = true; }
+
+                // Volatile: enemy (and non-magic player) projectiles gain speed on bounce
+                let volatileTier = getModTier('Volatile');
+                if (bounced && volatileTier > 0 && !p.isPlayer) {
+                    let boost = 1 + 0.12 * volatileTier;
+                    p.vx *= boost; p.vy *= boost;
+                }
+                if (bounced && p.isMagic && p.bouncesLeft > 0) {
+                    p.bouncesLeft--;
+                    // Empowered orbs accelerate on bounce (capped)
+                    if (p.isPlayer) {
+                        p.bounceBoosts = (p.bounceBoosts || 0) + 1;
+                        if (p.bounceBoosts <= 6) {
+                            p.vx *= 1.08;
+                            p.vy *= 1.08;
+                        }
+                        // Slightly stronger home after bounces
+                        p.homeStrength = Math.min(0.22, (p.homeStrength || 0.08) + 0.015);
+                    }
+                    if (volatileTier > 0) {
+                        p.vx *= (1 + 0.08 * volatileTier);
+                        p.vy *= (1 + 0.08 * volatileTier);
+                    }
+                }
+
+                if (p.life <= 0 || (p.isMagic && (p.bouncesLeft < 0 || p.pierces <= 0))) {
+                    // Vortex terminal field when vortex arrow expires
+                    if (p.isBow && p.isVortex && p.isPlayer) {
+                        for (let e of enemies) {
+                            if (e._dead) continue;
+                            let d = Math.hypot(e.x - p.x, e.y - p.y);
+                            if (d < (p.vortexRadius || 100) + 40) {
+                                let pull = (1 - d / ((p.vortexRadius || 100) + 40)) * 350;
+                                let a = Math.atan2(p.y - e.y, p.x - e.x);
+                                e.vx += Math.cos(a) * pull * 0.08;
+                                e.vy += Math.sin(a) * pull * 0.08;
+                            }
+                        }
+                        spawnParticles(p.x, p.y, '#38bdf8', 12);
+                    }
+                    projectiles.splice(i, 1);
+                    continue;
+                }
+
+                if (p.isPlayer) {
+                    let hitAny = false;
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        let e = enemies[j];
+                        let dist = Math.hypot(p.x - e.x, p.y - e.y);
+
+                        if (dist < 110 && e.dodgeCooldown <= 0) {
+                            handleEnemyDefensiveReaction(e, p);
+                        }
+
+                        if (dist < p.radius + e.radius) {
+                            // Fallen active parry
+                            if (e.isFallen && e.parryWindow > 0) {
+                                spawnFloatingText(e.x, e.y, "PARRY!", "#fbbf24");
+                                spawnParticles(e.x, e.y, "#fbbf24", 12);
+                                e.parryWindow = 0;
+                                e.parryCooldown = 2.5 + Math.random();
+                                if (!p.isMagic) { projectiles.splice(i, 1); }
+                                else { p.pierces = 0; }
+                                break;
+                            }
+
+                            if (e.species === 'elf' && e.abilityProcsLeft > 0 && !e.isBoss && !e.isFallen) {
+                                if (!e.counterTelegraph) {
+                                    e.counterTelegraph = 0.30;
+                                    e.counterTargetAngle = Math.atan2(player.y - e.y, player.x - e.x);
+                                    beamTelegraphs.push({
+                                        x1: e.x, y1: e.y,
+                                        x2: e.x + Math.cos(e.counterTargetAngle) * 240,
+                                        y2: e.y + Math.sin(e.counterTargetAngle) * 240,
+                                        timer: 0.30, maxTimer: 0.30, isBoss: false, isElfCounter: true
+                                    });
+                                    spawnFloatingText(e.x, e.y - 16, "COUNTERING...", "#7dd3fc");
+                                    break;
+                                }
+                            }
+
+                            let finalDmg = p.damage;
+                            if (e.shieldTimer > 0) {
+                                finalDmg *= 0.35;
+                                spawnFloatingText(e.x, e.y, "BLOCKED", "#f43f5e");
+                            }
+                            if (e.isBoss) finalDmg *= 0.72;
+                            else if (e.isFallen) finalDmg *= 0.80;
+
+                            e.hp -= finalDmg;
+                            hitAny = true;
+                            player.hp = Math.min(player.maxHp, player.hp + finalDmg * player.lifesteal);
+                            spawnParticles(e.x, e.y, e.color, 4);
+
+                            let killed = false;
+                            if (e.hp <= 0) {
+                                killEnemy(j, p.isSpecial ? 'special' : 'projectile');
+                                killed = true;
+                            }
+
+                            // RICOCHET
+                            if (killed && p.isBow && player.classType === 'bow') {
+                                let chances = player.deadeyeActive
+                                    ? [0.40, 0.28, 0.18, 0.10, 0.05]
+                                    : [0.25, 0.18, 0.12, 0.07, 0.03];
+                                let ch = chances[Math.min(p.ricochetChain || 0, chances.length - 1)];
+                                if (Math.random() < ch) {
+                                    let next = getNearestEnemy();
+                                    if (next) {
+                                        let nang = Math.atan2(next.y - p.y, next.x - p.x);
+                                        // Restore velocity toward new target (snap)
+                                        let restoreSpd = (p.initialSpeed || 900) * (0.85 + Math.min(0.2, (p.ricochetChain || 0) * 0.03));
+                                        p.vx = Math.cos(nang) * restoreSpd;
+                                        p.vy = Math.sin(nang) * restoreSpd;
+                                        p.baseDamage = (p.baseDamage || p.damage) * 1.25;
+                                        p.damage = p.baseDamage;
+                                        p.ricochetChain = (p.ricochetChain || 0) + 1;
+                                        p.life = Math.max(p.life, 1.4);
+                                        p.pierces = Math.max(p.pierces || 1, 1);
+                                        // Visual snap trail
+                                        teleportTrails.push({
+                                            x1: p.x, y1: p.y, x2: next.x, y2: next.y,
+                                            life: 0.15, maxLife: 0.15, isTelegraph: true
+                                        });
+                                        spawnFloatingText(p.x, p.y, p.isVortex ? "VORTEX RICOCHET!" : "RICOCHET!", "#38bdf8");
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // ARCANE FRACTURE
+                            if (killed && p.isMagic && p.canFracture !== false && player.classType === 'magic') {
+                                let gen = p.generation || 0;
+                                let fChance = (p.fractureChance != null ? p.fractureChance : 0.20) * Math.pow(0.55, gen);
+                                if (player.manaCollapseActive) fChance *= 1.4;
+                                // Soft projectile cap
+                                let magicCount = projectiles.filter(x => x.isMagic && x.isPlayer).length;
+                                if (magicCount > 80) fChance *= 0.3;
+                                if (Math.random() < fChance && gen < 4) {
+                                    let others = getAliveEnemies().slice(0, 3);
+                                    let fragDmg = Math.round((p.baseDamage || p.damage || 20) * (0.42 - gen * 0.06));
+                                    for (let k = 0; k < 3; k++) {
+                                        let tgt = others[k];
+                                        let fang = tgt ? Math.atan2(tgt.y - p.y, tgt.x - p.x) : (Math.random() * Math.PI * 2);
+                                        let fSpd = 300 + (p.bounceBoosts || 0) * 20;
+                                        projectiles.push({
+                                            x: p.x, y: p.y,
+                                            vx: Math.cos(fang) * fSpd, vy: Math.sin(fang) * fSpd,
+                                            radius: Math.max(4, (p.radius || 7) * 0.55),
+                                            damage: fragDmg, baseDamage: fragDmg,
+                                            life: 1.6 + (p.isSpecial ? 0.4 : 0),
+                                            maxLife: 1.6 + (p.isSpecial ? 0.4 : 0),
+                                            isPlayer: true, isMagic: true,
+                                            isHoming: true, isSpecial: !!p.isSpecial && gen === 0,
+                                            bouncesLeft: Math.max(1, Math.floor((p.bouncesLeft || 2) * 0.6)),
+                                            pierces: Math.max(1, Math.floor((p.pierces || 1) * 0.5) + 1),
+                                            canFracture: gen < 2,
+                                            fractureChance: fChance * 0.5,
+                                            generation: gen + 1,
+                                            homeStrength: (p.homeStrength || 0.08) * 0.9,
+                                            bounceBoosts: 0, pierceBoosts: 0,
+                                            singularityRefreshed: false
+                                        });
+                                    }
+                                    spawnFloatingText(p.x, p.y, gen === 0 ? "FRACTURE!" : "SPLIT!", "#c084fc");
+                                }
+                            }
+
+                            if (p.isMagic || (p.isBow && (p.pierces || 0) > 1)) {
+                                if (p.pierces !== undefined) p.pierces--;
+                                // Magic: each pierce slightly boosts home
+                                if (p.isMagic && p.isPlayer) {
+                                    p.pierceBoosts = (p.pierceBoosts || 0) + 1;
+                                    p.homeStrength = Math.min(0.24, (p.homeStrength || 0.08) + 0.02);
+                                }
+                                if ((p.pierces || 0) <= 0) {
+                                    projectiles.splice(i, 1);
+                                    break;
+                                }
+                            } else {
+                                projectiles.splice(i, 1);
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    let dist = Math.hypot(p.x - player.x, p.y - player.y);
+                    if (dist < p.radius + player.radius) {
+                        let dmg = Number.isFinite(p.damage) ? p.damage : 0;
+                        if (Number.isFinite(p.percentDamage) && p.percentDamage > 0) dmg += player.maxHp * p.percentDamage;
+                        applyPlayerDamage(dmg, 'projectile', { isBow: !!p.isBow });
+                        if (p.fallenLifesteal && p.owner) {
+                            p.owner.hp = Math.min(p.owner.maxHp, p.owner.hp + dmg * p.fallenLifesteal);
+                        }
+                        triggerScreenShake(3, 0.1);
+                        spawnParticles(player.x, player.y, '#ef4444', 6);
+                        projectiles.splice(i, 1);
+                        if (player.hp <= 0) triggerGameOver();
+                    }
+                }
+            }
+
+            // --- BEAM TELEGRAPHS ---
+            for (let i = beamTelegraphs.length - 1; i >= 0; i--) {
+                let bt = beamTelegraphs[i];
+                bt.timer -= dt;
+
+                if (bt.owner && bt.owner.hp > 0) {
+                    bt.x1 = bt.owner.x;
+                    bt.y1 = bt.owner.y;
+                    bt.x2 = bt.x1 + Math.cos(bt.angle) * 700;
+                    bt.y2 = bt.y1 + Math.sin(bt.angle) * 700;
+                }
+
+                if (bt.timer <= 0) {
+                    // Visual-only telegraphs (e.g. elf counter) must not become damaging beams
+                    if (!bt.isElfCounter && Number.isFinite(bt.damage)) {
+                        beams.push({
+                            x1: bt.x1, y1: bt.y1,
+                            x2: bt.x2, y2: bt.y2,
+                            width: bt.isBoss ? 26 : 18,
+                            damage: bt.damage,
+                            life: bt.isBoss ? 0.45 : 0.3, maxLife: bt.isBoss ? 0.45 : 0.3,
+                            percentDamage: Number.isFinite(bt.percentDamage) ? bt.percentDamage : 0
+                        });
+                    }
+                    beamTelegraphs.splice(i, 1);
+                }
+            }
+
+            // --- LINGERING BEAMS ---
+            for (let i = beams.length - 1; i >= 0; i--) {
+                let bm = beams[i];
+                bm.life -= dt;
+
+                let p1 = { x: bm.x1, y: bm.y1 };
+                let p2 = { x: bm.x2, y: bm.y2 };
+                let lineLen = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                if (lineLen > 0) {
+                    let u = ((player.x - p1.x) * (p2.x - p1.x) + (player.y - p1.y) * (p2.y - p1.y)) / (lineLen * lineLen);
+                    u = Math.max(0, Math.min(1, u));
+                    let closestX = p1.x + u * (p2.x - p1.x);
+                    let closestY = p1.y + u * (p2.y - p1.y);
+                    let distToBeam = Math.hypot(player.x - closestX, player.y - closestY);
+
+                    if (distToBeam < player.radius + bm.width / 2) {
+                        let frameDmg = (Number.isFinite(bm.damage) ? bm.damage : 0) * dt * 2.5;
+                        if (Number.isFinite(bm.percentDamage) && bm.percentDamage > 0) frameDmg += player.maxHp * bm.percentDamage * dt * 1.8;
+                        applyPlayerDamage(frameDmg, 'beam', {});
+                        triggerScreenShake(2, 0.05);
+                        spawnParticles(player.x, player.y, '#eab308', 2);
+                        if (player.hp <= 0) triggerGameOver();
+                    }
+                }
+
+                if (bm.life <= 0) beams.splice(i, 1);
+            }
+
+            // --- ENEMIES BEHAVIOR ---
+            for (let i = 0; i < enemies.length; i++) {
+                let e = enemies[i];
+
+                if (e.stunTimer > 0) {
+                    e.stunTimer -= dt;
+                    continue;
+                }
+
+                if (e.dodgeCooldown > 0) e.dodgeCooldown -= dt;
+                if (e.counterTelegraph > 0) {
+                    e.counterTelegraph -= dt;
+                    if (e.counterTelegraph <= 0 && e.abilityProcsLeft > 0 && e.species === 'elf') {
+                        e.abilityProcsLeft--;
+                        e.counterTelegraph = 0;
+                        let cAng = e.counterTargetAngle != null ? e.counterTargetAngle : Math.atan2(player.y - e.y, player.x - e.x);
+                        projectiles.push({
+                            x: e.x, y: e.y,
+                            vx: Math.cos(cAng) * 620, vy: Math.sin(cAng) * 620,
+                            radius: 8, damage: Math.round(e.damage * 2.0),
+                            life: 2.0, isPlayer: false,
+                            percentDamage: (e.percentDamage || 0) * 0.4
+                        });
+                        spawnFloatingText(e.x, e.y, `COUNTER! (${e.abilityProcsLeft} left)`, "#0284c7");
+                        spawnParticles(e.x, e.y, "#38bdf8", 12);
+                    }
+                }
+                if (e.shieldTimer > 0) e.shieldTimer -= dt;
+
+                // Regenerating modifier
+                if (e.regenRate > 0 && e.hp < e.maxHp) {
+                    e.hp = Math.min(e.maxHp, e.hp + e.regenRate * dt);
+                }
+                if (e.specialCooldown > 0) e.specialCooldown -= dt;
+                if (e.parryCooldown > 0) e.parryCooldown -= dt;
+                if (e.parryWindow > 0) e.parryWindow -= dt;
+
+                // Fallen intelligent parry: open window when player projectile or melee is near
+                if (e.isFallen && e.parryCooldown <= 0 && e.parryWindow <= 0) {
+                    let threat = false;
+                    for (let p of projectiles) {
+                        if (!p.isPlayer) continue;
+                        let d = Math.hypot(p.x - e.x, p.y - e.y);
+                        if (d < 120) { threat = true; break; }
+                    }
+                    if (!threat && Math.hypot(player.x - e.x, player.y - e.y) < 110 && player.classType === 'melee') {
+                        threat = true;
+                    }
+                    if (threat && Math.random() < 0.45) {
+                        e.parryWindow = 0.35 + Math.random() * 0.15;
+                        spawnFloatingText(e.x, e.y - 18, "PARRY STANCE", "#fbbf24");
+                    }
+                }
+
+                // Shielded modifier: periodic brief DR windows
+                if (e.shieldCycle > 0) {
+                    e.shieldCycle -= dt;
+                    if (e.shieldCycle <= 0) {
+                        e.shieldTimer = 0.9 + getModTier('Shielded') * 0.15;
+                        e.shieldCycle = 3.2 + Math.random() * 2 - getModTier('Shielded') * 0.2;
+                        spawnFloatingText(e.x, e.y, "SHIELD!", "#f43f5e");
+                    }
+                }
+
+                // Erratic modifier: occasional random juke
+                if (getModTier('Erratic') > 0) {
+                    e.erraticTimer = (e.erraticTimer || 0) - dt;
+                    if (e.erraticTimer <= 0) {
+                        e.erraticTimer = 1.4 - getModTier('Erratic') * 0.12 + Math.random() * 1.2;
+                        let juke = Math.random() * Math.PI * 2;
+                        e.vx += Math.cos(juke) * (240 + getModTier('Erratic') * 40);
+                        e.vy += Math.sin(juke) * (240 + getModTier('Erratic') * 40);
+                    }
+                }
+
+                let angleToPlayer = Math.atan2(player.y - e.y, player.x - e.x);
+                let distToPlayer = Math.hypot(player.x - e.x, player.y - e.y);
+
+                if (e.species === 'goblin') {
+                    e.vx += Math.cos(angleToPlayer) * e.speed * 1.9 * dt;
+                    e.vy += Math.sin(angleToPlayer) * e.speed * 1.9 * dt;
+                } else if (e.species === 'orc') {
+                    e.vx += Math.cos(angleToPlayer) * e.speed * 1.55 * dt;
+                    e.vy += Math.sin(angleToPlayer) * e.speed * 1.55 * dt;
+                } else if (e.species === 'mage') {
+                    if (distToPlayer > 280) {
+                        e.vx += Math.cos(angleToPlayer) * e.speed * dt;
+                        e.vy += Math.sin(angleToPlayer) * e.speed * dt;
+                    } else if (distToPlayer < 150 && e.dodgeCooldown <= 0) {
+                        e.vx -= Math.cos(angleToPlayer) * 320;
+                        e.vy -= Math.sin(angleToPlayer) * 320;
+                        e.dodgeCooldown = 2.4;
+                        spawnFloatingText(e.x, e.y, "REPOSITION", "#eab308");
+                    } else {
+                        e.vx *= 0.90; e.vy *= 0.90;
+                    }
+
+                    e.attackTimer -= dt;
+                    if (e.attackTimer <= 0) {
+                        e.attackTimer = 3.2 + 0.4;
+                        let beamReach = Math.min(ARENA_WIDTH, ARENA_HEIGHT) * 0.85;
+                        beamTelegraphs.push({
+                            owner: e,
+                            x1: e.x, y1: e.y,
+                            x2: e.x + Math.cos(angleToPlayer) * beamReach,
+                            y2: e.y + Math.sin(angleToPlayer) * beamReach,
+                            angle: angleToPlayer,
+                            damage: Math.round(e.damage * 1.2),
+                            timer: 0.45, maxTimer: 0.45,
+                            isBoss: false, percentDamage: 0
+                        });
+                        spawnFloatingText(e.x, e.y, "CHARGING...", "#eab308");
+                    }
+                } else if (e.species === 'elf') {
+                    e.vx += Math.cos(angleToPlayer + 0.3) * e.speed * 1.35 * dt;
+                    e.vy += Math.sin(angleToPlayer + 0.3) * e.speed * 1.35 * dt;
+
+                    e.attackTimer -= dt;
+                    if (e.attackTimer <= 0) {
+                        e.attackTimer = 2.4;
+                        projectiles.push({
+                            x: e.x, y: e.y,
+                            vx: Math.cos(angleToPlayer) * 280,
+                            vy: Math.sin(angleToPlayer) * 280,
+                            radius: 7, damage: Math.round(e.damage * 0.75),
+                            life: 4, isPlayer: false
+                        });
+                    }
+                }
+
+
+                // --- BOSS BEHAVIORS ---
+                else if (e.behavior === 'goblin_boss') {
+                    if (distToPlayer > 200) {
+                        e.vx += Math.cos(angleToPlayer) * e.speed * 2.1 * dt;
+                        e.vy += Math.sin(angleToPlayer) * e.speed * 2.1 * dt;
+                    } else if (distToPlayer < 90 && e.dodgeCooldown <= 0) {
+                        let leapAng = angleToPlayer + (Math.random() > 0.5 ? 1.2 : -1.2);
+                        e.vx = Math.cos(leapAng) * 480; e.vy = Math.sin(leapAng) * 480;
+                        e.dodgeCooldown = 1.35;
+                        spawnFloatingText(e.x, e.y, "LEAP!", "#22c55e");
+                        spawnParticles(e.x, e.y, "#22c55e", 10);
+                    } else {
+                        e.vx += Math.cos(angleToPlayer + 0.8) * e.speed * 1.4 * dt;
+                        e.vy += Math.sin(angleToPlayer + 0.8) * e.speed * 1.4 * dt;
+                    }
+                    e.attackTimer -= dt;
+                    if (e.attackTimer <= 0) {
+                        e.attackTimer = 1.6;
+                        for (let a = -0.35; a <= 0.35; a += 0.35) {
+                            projectiles.push({
+                                x: e.x, y: e.y,
+                                vx: Math.cos(angleToPlayer + a) * 340, vy: Math.sin(angleToPlayer + a) * 340,
+                                radius: 6, damage: Math.round(e.damage * 0.55), life: 2.5, isPlayer: false,
+                                percentDamage: e.percentDamage * 0.4
+                            });
+                        }
+                    }
+                    if (e.specialCooldown <= 0 && distToPlayer < 160) {
+                        e.specialCooldown = 5.5;
+                        e.vx = Math.cos(angleToPlayer) * 520; e.vy = Math.sin(angleToPlayer) * 520;
+                        spawnFloatingText(e.x, e.y, "WARLORD STRIKE!", "#4ade80");
+                    }
+                }
+                else if (e.behavior === 'orc_boss') {
+                    e.vx += Math.cos(angleToPlayer) * e.speed * 1.3 * dt;
+                    e.vy += Math.sin(angleToPlayer) * e.speed * 1.3 * dt;
+                    if (distToPlayer < 70 && e.specialCooldown <= 0) {
+                        e.specialCooldown = 3.1;
+                        spawnFloatingText(e.x, e.y, "SLAM!", "#f43f5e");
+                        spawnParticles(e.x, e.y, "#f43f5e", 18);
+                        triggerScreenShake(8, 0.25);
+                        if (distToPlayer < 110) {
+                            let slamDmg = (Number.isFinite(e.damage) ? e.damage : 0) * 1.8;
+                            if (Number.isFinite(e.percentDamage) && e.percentDamage > 0) slamDmg += player.maxHp * e.percentDamage;
+                            applyPlayerDamage(slamDmg, 'slam', {});
+                            if (player.hp <= 0) triggerGameOver();
+                        }
+                        for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+                            projectiles.push({
+                                x: e.x, y: e.y, vx: Math.cos(a) * 220, vy: Math.sin(a) * 220,
+                                radius: 9, damage: Math.round(e.damage * 0.7), life: 2.2, isPlayer: false,
+                                percentDamage: e.percentDamage * 0.5
+                            });
+                        }
+                    }
+                    e.attackTimer -= dt;
+                    if (e.attackTimer <= 0) {
+                        e.attackTimer = 2.8;
+                        e.vx = Math.cos(angleToPlayer) * 380; e.vy = Math.sin(angleToPlayer) * 380;
+                        spawnFloatingText(e.x, e.y, "CHARGE!", "#fb7185");
+                    }
+                    if (e.shieldCycle <= 0) {
+                        e.shieldTimer = 1.4; e.shieldCycle = 5;
+                        spawnFloatingText(e.x, e.y, "BRACE!", "#f43f5e");
+                    }
+                }
+                else if (e.behavior === 'mage_boss') {
+                    if (distToPlayer < 120 && e.dodgeCooldown <= 0) {
+                        let tpAng = Math.random() * Math.PI * 2;
+                        e.x = Math.max(50, Math.min(ARENA_WIDTH - 50, e.x + Math.cos(tpAng) * 220));
+                        e.y = Math.max(50, Math.min(ARENA_HEIGHT - 50, e.y + Math.sin(tpAng) * 220));
+                        e.dodgeCooldown = 2.1;
+                        spawnParticles(e.x, e.y, "#eab308", 14);
+                        spawnFloatingText(e.x, e.y, "BLINK!", "#facc15");
+                    } else if (distToPlayer > 320) {
+                        e.vx += Math.cos(angleToPlayer) * e.speed * 0.9 * dt;
+                        e.vy += Math.sin(angleToPlayer) * e.speed * 0.9 * dt;
+                    } else { e.vx *= 0.88; e.vy *= 0.88; }
+                    e.attackTimer -= dt;
+                    if (e.attackTimer <= 0) {
+                        e.attackTimer = 2.4;
+                        beamTelegraphs.push({
+                            owner: e, x1: e.x, y1: e.y,
+                            x2: e.x + Math.cos(angleToPlayer) * 780, y2: e.y + Math.sin(angleToPlayer) * 780,
+                            angle: angleToPlayer, damage: Math.round(e.damage * 1.5),
+                            timer: 0.55, maxTimer: 0.55, isBoss: true, percentDamage: e.percentDamage
+                        });
+                        spawnFloatingText(e.x, e.y, "ARC BEAM!", "#facc15");
+                    }
+                    if (e.specialCooldown <= 0) {
+                        e.specialCooldown = 6;
+                        for (let k = 0; k < 5; k++) {
+                            let sa = angleToPlayer + (k - 2) * 0.22;
+                            projectiles.push({
+                                x: e.x, y: e.y, vx: Math.cos(sa) * 260, vy: Math.sin(sa) * 260,
+                                radius: 8, damage: Math.round(e.damage * 0.6), life: 3.5, isPlayer: false,
+                                percentDamage: e.percentDamage * 0.35
+                            });
+                        }
+                    }
+                }
+                else if (e.behavior === 'elf_boss') {
+                    e.vx += Math.cos(angleToPlayer + 0.5) * e.speed * 1.5 * dt;
+                    e.vy += Math.sin(angleToPlayer + 0.5) * e.speed * 1.5 * dt;
+                    if (distToPlayer < 100 && e.abilityProcsLeft > 0 && e.dodgeCooldown <= 0) {
+                        e.abilityProcsLeft--;
+                        let tpAng = angleToPlayer + (Math.random() > 0.5 ? 1.4 : -1.4);
+                        e.x = Math.max(40, Math.min(ARENA_WIDTH - 40, e.x + Math.cos(tpAng) * 160));
+                        e.y = Math.max(40, Math.min(ARENA_HEIGHT - 40, e.y + Math.sin(tpAng) * 160));
+                        e.dodgeCooldown = 1.0;
+                        spawnParticles(e.x, e.y, "#38bdf8", 12);
+                        spawnFloatingText(e.x, e.y, "SHADOW BLINK!", "#38bdf8");
+                        for (let a = -0.4; a <= 0.4; a += 0.4) {
+                            projectiles.push({
+                                x: e.x, y: e.y, vx: Math.cos(angleToPlayer + a) * 310, vy: Math.sin(angleToPlayer + a) * 310,
+                                radius: 6, damage: Math.round(e.damage * 0.65), life: 2.8, isPlayer: false,
+                                percentDamage: e.percentDamage * 0.4
+                            });
+                        }
+                    }
+                    e.attackTimer -= dt;
+                    if (e.attackTimer <= 0) {
+                        e.attackTimer = 1.5;
+                        projectiles.push({
+                            x: e.x, y: e.y, vx: Math.cos(angleToPlayer) * 320, vy: Math.sin(angleToPlayer) * 320,
+                            radius: 7, damage: Math.round(e.damage * 0.85), life: 3.5, isPlayer: false,
+                            percentDamage: e.percentDamage * 0.3
+                        });
+                    }
+                }
+                // --- FALLEN BEHAVIORS ---
+                else if (e.behavior === 'fallen_melee') {
+                    e.vx += Math.cos(angleToPlayer) * e.speed * 1.7 * dt;
+                    e.vy += Math.sin(angleToPlayer) * e.speed * 1.7 * dt;
+                    e.attackTimer -= dt;
+                    if (e.attackTimer <= 0) {
+                        e.attackTimer = 1 / e.attackSpeed;
+                        e.attackCount = (e.attackCount || 0) + 1;
+                        let isSpecial = (e.attackCount % 3 === 0);
+                        if (isSpecial && distToPlayer > 50 && distToPlayer < 280) {
+                            teleportTrails.push({ x1: e.x, y1: e.y, x2: player.x, y2: player.y, life: 0.2, maxLife: 0.2, isTelegraph: true });
+                            e.x = player.x - Math.cos(angleToPlayer) * 50;
+                            e.y = player.y - Math.sin(angleToPlayer) * 50;
+                            e.x = Math.max(40, Math.min(ARENA_WIDTH - 40, e.x));
+                            e.y = Math.max(40, Math.min(ARENA_HEIGHT - 40, e.y));
+                            spawnFloatingText(e.x, e.y, "FALLEN EXEC!", "#c084fc");
+                        }
+                        let range = isSpecial ? 150 : 95;
+                        let arc = isSpecial ? Math.PI * 1.0 : Math.PI * 0.6;
+                        meleeVisuals.push({ x: e.x, y: e.y, angle: angleToPlayer, range: range, arcAngle: arc, isSpecial: isSpecial, life: 0.16, maxLife: 0.16, isEnemy: true });
+                        let angNow = Math.atan2(player.y - e.y, player.x - e.x);
+                        if (Math.hypot(player.x - e.x, player.y - e.y) < range + player.radius) {
+                            let dmg = (Number.isFinite(e.damage) ? e.damage : 0) * (isSpecial ? 2.4 : 1.3);
+                            if (Number.isFinite(e.percentDamage) && e.percentDamage > 0) dmg += player.maxHp * e.percentDamage * (isSpecial ? 1.35 : 0.7);
+                            let applied = applyPlayerDamage(dmg, 'fallen_melee', { isSpecial });
+                            if (applied && e.lifesteal) e.hp = Math.min(e.maxHp, e.hp + dmg * e.lifesteal);
+                            spawnParticles(player.x, player.y, e.color, 8);
+                            if (isSpecial) {
+                                player.x += Math.cos(angNow) * 45;
+                                player.y += Math.sin(angNow) * 45;
+                                spawnFloatingText(player.x, player.y, "CLEAVE!", "#a855f7");
+                            }
+                        }
+                    }
+                }
+                else if (e.behavior === 'fallen_bow') {
+                    if (distToPlayer < 180) { e.vx -= Math.cos(angleToPlayer) * e.speed * 1.1 * dt; e.vy -= Math.sin(angleToPlayer) * e.speed * 1.1 * dt; }
+                    else { e.vx += Math.cos(angleToPlayer) * e.speed * 0.6 * dt; e.vy += Math.sin(angleToPlayer) * e.speed * 0.6 * dt; }
+                    e.attackTimer -= dt;
+                    if (e.attackTimer <= 0) {
+                        e.attackTimer = 1 / e.attackSpeed;
+                        e.attackCount = (e.attackCount || 0) + 1;
+                        let isSpecial = (e.attackCount % 3 === 0);
+                        let spd = isSpecial ? 900 : 620;
+                        let dmgMult = isSpecial ? 2.8 : 1.6;
+                        if (isSpecial) {
+                            for (let sa of [-0.28, 0, 0.28]) {
+                                projectiles.push({
+                                    x: e.x, y: e.y,
+                                    vx: Math.cos(angleToPlayer + sa) * spd,
+                                    vy: Math.sin(angleToPlayer + sa) * spd,
+                                    radius: 12, damage: Math.round(e.damage * dmgMult), life: 2.5,
+                                    isPlayer: false, isBow: true, isVortex: true,
+                                    vortexRadius: 100, vortexPull: 300,
+                                    percentDamage: e.percentDamage * 0.65,
+                                    fallenLifesteal: e.lifesteal, owner: e
+                                });
+                            }
+                            spawnFloatingText(e.x, e.y, "FALLEN VORTEX!", "#60a5fa");
+                        } else {
+                            projectiles.push({
+                                x: e.x, y: e.y,
+                                vx: Math.cos(angleToPlayer) * spd,
+                                vy: Math.sin(angleToPlayer) * spd,
+                                radius: 9, damage: Math.round(e.damage * dmgMult), life: 2.2,
+                                isPlayer: false, isBow: true,
+                                percentDamage: e.percentDamage * 0.4,
+                                fallenLifesteal: e.lifesteal, owner: e
+                            });
+                        }
+                    }
+                }
+                else if (e.behavior === 'fallen_magic') {
+                    if (distToPlayer < 140) { e.vx -= Math.cos(angleToPlayer) * e.speed * 1.3 * dt; e.vy -= Math.sin(angleToPlayer) * e.speed * 1.3 * dt; }
+                    else if (distToPlayer > 300) { e.vx += Math.cos(angleToPlayer) * e.speed * 0.8 * dt; e.vy += Math.sin(angleToPlayer) * e.speed * 0.8 * dt; }
+                    else { e.vx *= 0.92; e.vy *= 0.92; }
+                    e.attackTimer -= dt;
+                    if (e.attackTimer <= 0) {
+                        e.attackTimer = 1 / (e.attackSpeed * 0.85);
+                        e.attackCount = (e.attackCount || 0) + 1;
+                        let isSpecial = (e.attackCount % 3 === 0);
+                        for (let b = 0; b < 3; b++) {
+                            setTimeout(() => {
+                                if (!e || e.hp <= 0 || floorCleared || gameOver) return;
+                                let ang = Math.atan2(player.y - e.y, player.x - e.x);
+                                projectiles.push({
+                                    x: e.x, y: e.y,
+                                    vx: Math.cos(ang) * (isSpecial ? 440 : 320),
+                                    vy: Math.sin(ang) * (isSpecial ? 440 : 320),
+                                    radius: isSpecial ? 10 : 7,
+                                    damage: Math.round(e.damage * (isSpecial ? 1.55 : 0.9)),
+                                    life: isSpecial ? 3.0 : 2.2,
+                                    isPlayer: false, isMagic: true,
+                                    isFallenHoming: isSpecial ? true : (Math.random() < 0.45),
+                                    bouncesLeft: isSpecial ? 6 : 3, pierces: isSpecial ? 3 : 2,
+                                    percentDamage: e.percentDamage * (isSpecial ? 0.45 : 0.35),
+                                    fallenLifesteal: e.lifesteal, owner: e
+                                });
+                            }, b * 80);
+                        }
+                    }
+                }
+
+                let spd = Math.hypot(e.vx, e.vy);
+                let maxAllowedSpeed = Math.min(300, e.speed * 1.65);
+                if (spd > maxAllowedSpeed) {
+                    e.vx = (e.vx / spd) * maxAllowedSpeed;
+                    e.vy = (e.vy / spd) * maxAllowedSpeed;
+                }
+
+                e.x += e.vx * dt;
+                e.y += e.vy * dt;
+
+                if (e.x - e.radius < 0) { e.x = e.radius; e.vx *= -1; }
+                else if (e.x + e.radius > ARENA_WIDTH) { e.x = ARENA_WIDTH - e.radius; e.vx *= -1; }
+                if (e.y - e.radius < 0) { e.y = e.radius; e.vy *= -1; }
+                else if (e.y + e.radius > ARENA_HEIGHT) { e.y = ARENA_HEIGHT - e.radius; e.vy *= -1; }
+
+                if (distToPlayer < player.radius + e.radius) {
+                    let contactDmg = (Number.isFinite(e.damage) ? e.damage : 0) * dt * (e.isBoss || e.isFallen ? 1.4 : 1.15);
+                    if (Number.isFinite(e.percentDamage) && e.percentDamage > 0) contactDmg += player.maxHp * e.percentDamage * dt * 0.6;
+                    applyPlayerDamage(contactDmg, 'contact', { species: e.species });
+                    if (e.isFallen && e.lifesteal) {
+                        e.hp = Math.min(e.maxHp, e.hp + contactDmg * e.lifesteal * 0.5);
+                    }
+                    triggerScreenShake(2, 0.1);
+                    if (player.hp <= 0) triggerGameOver();
+                }
+            }
+
+            // Enemy Bouncing Physics
+            for (let i = 0; i < enemies.length; i++) {
+                for (let j = i + 1; j < enemies.length; j++) {
+                    let e1 = enemies[i], e2 = enemies[j];
+                    let dx = e2.x - e1.x, dy = e2.y - e1.y;
+                    let dist = Math.hypot(dx, dy);
+                    let minDist = e1.radius + e2.radius;
+                    if (dist < minDist) {
+                        let overlap = minDist - dist;
+                        let nx = dx / (dist || 1), ny = dy / (dist || 1);
+                        e1.x -= nx * overlap * 0.5; e1.y -= ny * overlap * 0.5;
+                        e2.x += nx * overlap * 0.5; e2.y += ny * overlap * 0.5;
+
+                        let kx = e1.vx - e2.vx, ky = e1.vy - e2.vy;
+                        let p = 2 * (nx * kx + ny * ky) / (e1.mass + e2.mass);
+                        e1.vx -= p * e2.mass * nx * 0.8; e1.vy -= p * e2.mass * ny * 0.8;
+                        e2.vx += p * e1.mass * nx * 0.8; e2.vy += p * e1.mass * ny * 0.8;
+                    }
+                }
+            }
+
+            // Loot Pickup
+            for (let i = lootItems.length - 1; i >= 0; i--) {
+                let l = lootItems[i];
+                let dist = Math.hypot(player.x - l.x, player.y - l.y);
+                if (dist < player.radius + 30) {
+                    let angle = Math.atan2(player.y - l.y, player.x - l.x);
+                    l.x += Math.cos(angle) * 350 * dt;
+                    l.y += Math.sin(angle) * 350 * dt;
+
+                    if (dist < player.radius + l.radius) {
+                        if (l.type === 'xp') addXP(l.value);
+                        if (l.type === 'gold') { player.gold += l.value; updateHUD(); }
+                        lootItems.splice(i, 1);
+                    }
+                }
+            }
+
+            // FX Lifetimes
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let pt = particles[i];
+                pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.life -= dt;
+                if (pt.life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = meleeVisuals.length - 1; i >= 0; i--) {
+                let mv = meleeVisuals[i];
+                mv.life -= dt;
+                if (mv.life <= 0) meleeVisuals.splice(i, 1);
+            }
+
+            for (let i = lightningEffects.length - 1; i >= 0; i--) {
+                let le = lightningEffects[i];
+                le.life -= dt;
+                if (le.life <= 0) lightningEffects.splice(i, 1);
+            }
+
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                let ft = floatingTexts[i];
+                ft.y += ft.vy * dt; ft.life -= dt;
+                if (ft.life <= 0) floatingTexts.splice(i, 1);
+            }
+
+            for (let i = teleportTrails.length - 1; i >= 0; i--) {
+                teleportTrails[i].life -= dt;
+                if (teleportTrails[i].life <= 0) teleportTrails.splice(i, 1);
+            }
+            for (let i = slashZones.length - 1; i >= 0; i--) {
+                slashZones[i].life -= dt;
+                if (slashZones[i].life <= 0) slashZones.splice(i, 1);
+            }
+            // Killshot / ult projectiles
+            for (let i = ultProjectiles.length - 1; i >= 0; i--) {
+                let up = ultProjectiles[i];
+                up.x += up.vx * dt; up.y += up.vy * dt; up.life -= dt;
+                for (let j = enemies.length - 1; j >= 0; j--) {
+                    let e = enemies[j];
+                    if (e._dead || up.pierced.has(e)) continue;
+                    if (Math.hypot(up.x - e.x, up.y - e.y) < up.radius + e.radius) {
+                        if (e.isFallen && e.parryWindow > 0) {
+                            spawnFloatingText(e.x, e.y, "PARRY!", "#fbbf24");
+                            e.parryWindow = 0; e.parryCooldown = 3;
+                            continue;
+                        }
+                        up.pierced.add(e);
+                        let dmg = up.damage;
+                        if (up.percentDamage) dmg += e.maxHp * ((e.isBoss || e.isFallen) ? up.percentDamage * 0.5 : up.percentDamage);
+                        if (e.isBoss) dmg *= 0.72; else if (e.isFallen) dmg *= 0.80;
+                        e.hp -= dmg;
+                        e.vx += (up.vx / (Math.hypot(up.vx, up.vy) || 1)) * 400;
+                        e.vy += (up.vy / (Math.hypot(up.vx, up.vy) || 1)) * 400;
+                        spawnParticles(e.x, e.y, '#38bdf8', 10);
+                        if (e.hp <= 0) killEnemy(j, 'ultimate');
+                    }
+                }
+                if (up.life <= 0 || up.x < -50 || up.x > ARENA_WIDTH + 50 || up.y < -50 || up.y > ARENA_HEIGHT + 50) {
+                    // Terminal vortex
+                    if (up.isKillshot) {
+                        for (let e of enemies) {
+                            if (e._dead) continue;
+                            let d = Math.hypot(e.x - up.x, e.y - up.y);
+                            if (d < 160) {
+                                let pull = (1 - d / 160) * 500;
+                                let a = Math.atan2(up.y - e.y, up.x - e.x);
+                                e.vx += Math.cos(a) * pull * 0.05;
+                                e.vy += Math.sin(a) * pull * 0.05;
+                            }
+                        }
+                        spawnParticles(up.x, up.y, '#38bdf8', 20);
+                    }
+                    ultProjectiles.splice(i, 1);
+                }
+            }
+
+            // Floor Clear Trigger
+            if (enemies.length === 0 && !floorCleared) {
+                floorCleared = true;
+                for (let i = lootItems.length - 1; i >= 0; i--) {
+                    let l = lootItems[i];
+                    if (l.type === 'xp') addXP(l.value);
+                    if (l.type === 'gold') player.gold += l.value;
+                    spawnParticles(l.x, l.y, l.type === 'xp' ? '#10b981' : '#f59e0b', 4);
+                }
+                lootItems = [];
+                updateHUD();
+                document.getElementById('floor-clear-overlay').classList.remove('hidden');
+            }
+
+            updateHUDBarElements();
+        }
+
+        // --- ENEMY DEFENSIVE REACTIONS ---
+        function handleEnemyDefensiveReaction(enemy, projectile) {
+            let angleFromProj = Math.atan2(enemy.y - projectile.y, enemy.x - projectile.x);
+
+            if (enemy.species === 'elf' || enemy.behavior === 'elf_boss') {
+                if (enemy.abilityProcsLeft > 0) {
+                    enemy.abilityProcsLeft--;
+                    enemy.dodgeCooldown = 1.5;
+                    let tpAngle = angleFromProj + (Math.random() > 0.5 ? 1 : -1) * (Math.PI / 2);
+                    enemy.x += Math.cos(tpAngle) * 110;
+                    enemy.y += Math.sin(tpAngle) * 110;
+                    enemy.x = Math.max(40, Math.min(ARENA_WIDTH - 40, enemy.x));
+                    enemy.y = Math.max(40, Math.min(ARENA_HEIGHT - 40, enemy.y));
+                    spawnParticles(enemy.x, enemy.y, '#38bdf8', 10);
+                    spawnFloatingText(enemy.x, enemy.y, `BLINK! (${enemy.abilityProcsLeft} left)`, "#38bdf8");
+                }
+            } else if (enemy.species === 'goblin' || enemy.behavior === 'goblin_boss') {
+                enemy.dodgeCooldown = 1.2;
+                let dodgeAngle = angleFromProj + (Math.random() > 0.5 ? 1.4 : -1.4);
+                enemy.vx += Math.cos(dodgeAngle) * 520;
+                enemy.vy += Math.sin(dodgeAngle) * 520;
+                spawnFloatingText(enemy.x, enemy.y, "LEAP DODGE!", "#22c55e");
+            } else if (enemy.species === 'orc' || enemy.behavior === 'orc_boss') {
+                enemy.dodgeCooldown = 2.5;
+                enemy.shieldTimer = 1.2;
+                spawnFloatingText(enemy.x, enemy.y, "BRACE!", "#f43f5e");
+            } else if (enemy.isFallen) {
+                enemy.dodgeCooldown = 1.6;
+                let dodgeAngle = angleFromProj + (Math.random() > 0.5 ? 1.3 : -1.3);
+                enemy.vx += Math.cos(dodgeAngle) * 400;
+                enemy.vy += Math.sin(dodgeAngle) * 400;
+                spawnFloatingText(enemy.x, enemy.y, "EVADE!", enemy.color);
+            }
+        }
+
+        // --- ATTACK EXECUTION ---
+        function triggerPlayerAttack() {
+            let nearest = getNearestEnemy();
+            let aimAngle = 0;
+            if (nearest) {
+                aimAngle = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+            } else if (touchJoystick.active && Math.hypot(touchJoystick.vectorX, touchJoystick.vectorY) > 0.1) {
+                aimAngle = Math.atan2(touchJoystick.vectorY, touchJoystick.vectorX);
+            }
+
+            // Durability scales outgoing damage (100% = full, ~5% = ~55%)
+            let durMult = getOutgoingDurMult();
+            let baseDmg = 24 * player.damageMult * (1 + (upgrades.damage.level - 1) * 0.15) * durMult;
+
+            player.attackCount++;
+            let isThirdAttack = (player.attackCount % 3 === 0);
+            
+            // Lower special mana costs so 3rd-strike procs fire more often
+            // Percentage-based mana cost for empowered 3rd-strike attacks
+            let manaCostPct = 0;
+            if (isThirdAttack) {
+                if (player.classType === 'melee') manaCostPct = 0.22;      // 22% of max mana
+                else if (player.classType === 'bow') manaCostPct = 0.18;   // 18%
+                else if (player.classType === 'magic') manaCostPct = 0.25; // 25%
+            }
+            let manaCost = Math.ceil(player.maxMana * manaCostPct);
+
+            let isSpecialProc = isThirdAttack && (player.mana >= manaCost);
+            if (isSpecialProc) player.mana -= manaCost;
+
+            // Durability drains slowly on attacks (repair system now functional)
+            if (player.durability > 0) {
+                player.durability = Math.max(0, player.durability - (isSpecialProc ? 0.8 : 0.35));
+            }
+
+            if (player.classType === 'melee') {
+                let range = isSpecialProc ? 150 : 100;
+                let arcAngle = isSpecialProc ? (Math.PI * 0.95) : (Math.PI * 0.65);
+                if (player.lastStandActive) { // Bloodburn expanded range/arc
+                    range = isSpecialProc ? 200 : 155;
+                    arcAngle = isSpecialProc ? (Math.PI * 1.15) : (Math.PI * 0.95);
+                }
+                let dmgMultiplier = isSpecialProc ? 3.4 : 1.4;
+
+                meleeVisuals.push({
+                    x: player.x, y: player.y, angle: aimAngle, range: range,
+                    arcAngle: arcAngle, isSpecial: isSpecialProc, life: 0.15, maxLife: 0.15
+                });
+
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    let e = enemies[i];
+                    let dist = Math.hypot(e.x - player.x, e.y - player.y);
+                    if (dist < range + e.radius) {
+                        let angleToEnemy = Math.atan2(e.y - player.y, e.x - player.x);
+                        let diff = Math.abs(angleToEnemy - aimAngle);
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        
+                        if (Math.abs(diff) < arcAngle / 2) {
+                            // Fallen parry
+                            if (e.isFallen && e.parryWindow > 0) {
+                                spawnFloatingText(e.x, e.y, "PARRY!", "#fbbf24");
+                                spawnParticles(e.x, e.y, "#fbbf24", 10);
+                                e.parryWindow = 0;
+                                e.parryCooldown = 2.5 + Math.random();
+                                continue;
+                            }
+                            let totalDmg = baseDmg * dmgMultiplier;
+                            if (e.shieldTimer > 0) totalDmg *= 0.35;
+                            if (e.isBoss) totalDmg *= 0.72;
+                            else if (e.isFallen) totalDmg *= 0.80;
+
+                            e.hp -= totalDmg;
+                            player.hp = Math.min(player.maxHp, player.hp + totalDmg * player.lifesteal);
+                            spawnParticles(e.x, e.y, isSpecialProc ? '#f59e0b' : '#3b82f6', isSpecialProc ? 10 : 5);
+                            
+                            let chainChance = isSpecialProc ? 1.0 : 0.35;
+                            if (Math.random() < chainChance) {
+                                triggerChainLightning(e, totalDmg * 0.65, isSpecialProc);
+                            }
+
+                            if (isSpecialProc) {
+                                e.vx += Math.cos(aimAngle) * 480;
+                                e.vy += Math.sin(aimAngle) * 480;
+                            }
+
+                            if (e.hp <= 0) killEnemy(i, isSpecialProc ? 'special' : 'melee');
+                        }
+                    }
+                }
+            } else if (player.classType === 'bow') {
+                let isVortexShot = isSpecialProc; // only empowered third-strike (or mana-collapse force) gets Vortex
+                let arrowRadius = isVortexShot ? 14 : 10;
+                let arrowDamage = isVortexShot ? baseDmg * 4.6 : baseDmg * 2.4;
+                let arrowSpeed = isVortexShot ? 1600 : 980;
+                let pierces = 1;
+                if (player.deadeyeActive) {
+                    arrowDamage *= 1.75;
+                    arrowSpeed *= 1.6;
+                    pierces = 2;
+                    if (isVortexShot) arrowRadius = 18;
+                }
+
+                if (isSpecialProc) {
+                    let spreadAngles = [-0.28, 0, 0.28];
+                    for (let sa of spreadAngles) {
+                        projectiles.push({
+                            x: player.x, y: player.y,
+                            vx: Math.cos(aimAngle + sa) * arrowSpeed,
+                            vy: Math.sin(aimAngle + sa) * arrowSpeed,
+                            radius: arrowRadius, damage: arrowDamage, baseDamage: arrowDamage,
+                            life: 2.8, isPlayer: true, isMagic: false, isBow: true,
+                            isVortex: true, isSpecial: true,
+                            pierces: player.deadeyeActive ? 3 : 2, ricochetChain: 0,
+                            vortexRadius: player.deadeyeActive ? 130 : 100,
+                            vortexPull: player.deadeyeActive ? 420 : 320,
+                            initialSpeed: arrowSpeed
+                        });
+                    }
+                    spawnFloatingText(player.x, player.y, "HYPERSONIC VORTEX!", "#38bdf8");
+                } else {
+                    projectiles.push({
+                        x: player.x, y: player.y,
+                        vx: Math.cos(aimAngle) * arrowSpeed,
+                        vy: Math.sin(aimAngle) * arrowSpeed,
+                        radius: arrowRadius + (player.deadeyeActive ? 2 : 0),
+                        damage: arrowDamage, baseDamage: arrowDamage,
+                        life: 2.2, isPlayer: true, isMagic: false, isBow: true,
+                        isVortex: isVortexShot, isSpecial: false,
+                        pierces: player.deadeyeActive ? 2 : 1, ricochetChain: 0,
+                        vortexRadius: isVortexShot ? (player.deadeyeActive ? 120 : 90) : 0,
+                        vortexPull: isVortexShot ? (player.deadeyeActive ? 380 : 280) : 0,
+                        initialSpeed: arrowSpeed
+                    });
+                    if (isVortexShot) spawnFloatingText(player.x, player.y, "VORTEX ARROW!", "#38bdf8");
+                }
+            } else if (player.classType === 'magic') {
+                for (let b = 0; b < 3; b++) {
+                    setTimeout(() => {
+                        if (!gameRunning || gameOver || floorCleared) return;
+
+                        let currentTarget = getNearestEnemy();
+                        let shotAngle = aimAngle;
+                        if (currentTarget) {
+                            shotAngle = Math.atan2(currentTarget.y - player.y, currentTarget.x - player.x);
+                        }
+
+                        let forceSpecial = isSpecialProc || player.manaCollapseActive;
+                        let isHomingShot = player.manaCollapseActive ? true : (Math.random() < 0.35);
+
+                        // Subtle per-orb bias within the burst (b = 0,1,2)
+                        let homeBias = (b === 0) ? 0.15 : 0;      // orb1: stronger home
+                        let bounceBias = (b === 1) ? 1 : 0;       // orb2: extra bounce
+                        let pierceBias = (b === 2) ? 1 : 0;       // orb3: extra pierce
+
+                        let spd = forceSpecial ? 500 : 420;
+                        let rad = forceSpecial ? (player.manaCollapseActive ? 12 : 10) : 7;
+                        let dmg = forceSpecial
+                            ? baseDmg * (player.manaCollapseActive ? 1.6 : 2.2)
+                            : baseDmg * 0.9;
+                        let life = forceSpecial ? (player.manaCollapseActive ? 2.8 : 2.4) : 2.0;
+                        let bounces = forceSpecial
+                            ? (player.manaCollapseActive ? 10 : 8) + bounceBias
+                            : 3 + bounceBias;
+                        let pierces = (player.manaCollapseActive ? 5 : (forceSpecial ? 4 : 3)) + pierceBias;
+                        let fractureChance = player.manaCollapseActive ? 0.32 : 0.20;
+
+                        projectiles.push({
+                            x: player.x, y: player.y,
+                            vx: Math.cos(shotAngle) * spd,
+                            vy: Math.sin(shotAngle) * spd,
+                            radius: rad,
+                            damage: dmg, baseDamage: dmg,
+                            life: life, maxLife: life,
+                            isPlayer: true, isMagic: true,
+                            isHoming: isHomingShot || (homeBias > 0 && Math.random() < 0.5),
+                            isSpecial: forceSpecial,
+                            bouncesLeft: bounces,
+                            pierces: pierces,
+                            canFracture: true,
+                            fractureChance: fractureChance,
+                            generation: 0,
+                            homeStrength: forceSpecial ? 0.12 + homeBias : 0.06 + homeBias,
+                            bounceBoosts: 0,
+                            pierceBoosts: 0,
+                            singularityRefreshed: false
+                        });
+                    }, b * 90);
+                }
+            }
+        }
+
+        function triggerChainLightning(primaryEnemy, damage, applyStun) {
+            let chainedTargets = [];
+            let current = primaryEnemy;
+
+            for (let step = 0; step < 3; step++) {
+                let candidate = null;
+                let minDist = 180;
+
+                for (let e of enemies) {
+                    if (e === primaryEnemy || chainedTargets.includes(e)) continue;
+                    let d = Math.hypot(e.x - current.x, e.y - current.y);
+                    if (d < minDist) {
+                        minDist = d;
+                        candidate = e;
+                    }
+                }
+
+                if (candidate) {
+                    lightningEffects.push({
+                        x1: current.x, y1: current.y,
+                        x2: candidate.x, y2: candidate.y,
+                        life: 0.2, maxLife: 0.2
+                    });
+
+                    candidate.hp -= damage;
+                    if (applyStun && !candidate.isBoss && !candidate.isFallen) {
+                        candidate.stunTimer = 0.8;
+                        spawnFloatingText(candidate.x, candidate.y, "STUNNED!", "#a855f7");
+                    } else if (applyStun && (candidate.isBoss || candidate.isFallen)) {
+                        // Immune to stun – show resist feedback
+                        spawnFloatingText(candidate.x, candidate.y, "RESIST!", "#fbbf24");
+                    } else {
+                        spawnFloatingText(candidate.x, candidate.y, "SHOCK", "#38bdf8");
+                    }
+
+                    spawnParticles(candidate.x, candidate.y, '#38bdf8', 6);
+                    chainedTargets.push(candidate);
+                    current = candidate;
+                } else break;
+            }
+        }
+
+        function getNearestEnemy() {
+            if (enemies.length === 0) return null;
+            let nearest = enemies[0];
+            let minDist = Math.hypot(nearest.x - player.x, nearest.y - player.y);
+            for (let i = 1; i < enemies.length; i++) {
+                let dist = Math.hypot(enemies[i].x - player.x, enemies[i].y - player.y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = enemies[i];
+                }
+            }
+            return nearest;
+        }
+
+        function killEnemy(index, source) {
+            if (index < 0 || index >= enemies.length) return;
+            let e = enemies[index];
+            if (e._dead) return; // prevent double registration
+            e._dead = true;
+
+            let wasBoss = e.isBoss, wasFallen = e.isFallen, wasStrong = e.isStrong;
+            let ex = e.x, ey = e.y, ecolor = e.color;
+            let xpR = e.xpReward, goldR = e.goldReward;
+
+            spawnParticles(ex, ey, ecolor, wasBoss || wasFallen ? 22 : 12);
+            if (wasBoss) {
+                spawnFloatingText(ex, ey, "BOSS SLAIN!", "#fbbf24");
+                triggerScreenShake(10, 0.35);
+            } else if (wasFallen) {
+                spawnFloatingText(ex, ey, "FALLEN BANISHED!", ecolor);
+                triggerScreenShake(7, 0.25);
+            }
+            lootItems.push({ x: ex + 8, y: ey, radius: 8, type: 'xp', value: xpR });
+            lootItems.push({ x: ex - 8, y: ey, radius: 8, type: 'gold', value: goldR });
+            if (wasBoss || wasFallen) {
+                lootItems.push({ x: ex, y: ey + 10, radius: 9, type: 'gold', value: Math.round(goldR * 0.8) });
+                lootItems.push({ x: ex, y: ey - 10, radius: 9, type: 'xp', value: Math.round(xpR * 0.5) });
+            }
+            enemies.splice(index, 1);
+
+            stats.totalKills++;
+            localStorage.setItem('geo_total_kills', stats.totalKills.toString());
+            updateMainStatsUI();
+
+            // Ultimate charge (reduced if from ultimate to prevent loops)
+            let charge = wasFallen ? 10 : (wasBoss ? 8 : (wasStrong ? 2 : 1));
+            if (source === 'ultimate') charge = Math.max(1, Math.floor(charge * 0.35));
+            // Reduced charge always applies; activation only when not already ulting
+            player.ultCharge = Math.min(player.ultMax, player.ultCharge + charge);
+            if (!player.ultimateActive && player.ultCharge >= player.ultMax) {
+                activateUltimate();
+            }
+
+            // GLOBAL MANA-ON-KILL (% of max mana)
+            // Bloodburn intentionally blocks mana restore
+            if (!(player.lastStandActive && player.classType === 'melee')) {
+                let manaPct = wasFallen ? 0.15 : (wasBoss ? 0.10 : (wasStrong ? 0.06 : 0.04));
+                let manaGain = Math.round(player.maxMana * manaPct);
+                if (manaGain > 0) {
+                    let before = player.mana;
+                    player.mana = Math.min(player.maxMana, player.mana + manaGain);
+                    if (player.mana > before) {
+                        spawnFloatingText(ex, ey - 18, `+${Math.round(manaPct * 100)}% MANA`, "#38bdf8");
+                    }
+                }
+            }
+
+            // Deadeye kill heal (Sharpshooter Last Stand survival loop)
+            if (player.deadeyeActive && player.classType === 'bow') {
+                let healPct = wasFallen ? 0.04 : (wasBoss ? 0.03 : 0.02);
+                let heal = (Number.isFinite(player.maxHp) ? player.maxHp : 0) * healPct;
+                if (Number.isFinite(player.hp) && Number.isFinite(heal)) {
+                    player.hp = Math.min(player.maxHp, player.hp + heal);
+                    spawnFloatingText(ex, ey + 12, `+${Math.round(healPct * 100)}% HP`, "#4ade80");
+                }
+            }
+
+            // Class On-Kill abilities
+            if (player.classType === 'melee' && source !== 'execution') {
+                tryExecutionStep(ex, ey);
+            }
+        }
+
+        function getAliveEnemies() {
+            return enemies.filter(e => e.hp > 0 && !e._dead);
+        }
+
+        function tryExecutionStep(fromX, fromY) {
+            // Chain chance: 15% base, diminishing on chain
+            let chances = [0.15, 0.10, 0.06, 0.03, 0.01];
+            let chance = chances[Math.min(player.executionChain, chances.length - 1)];
+            if (Math.random() > chance) {
+                player.executionChain = 0;
+                return;
+            }
+            let targets = getAliveEnemies();
+            if (targets.length === 0) {
+                player.executionChain = 0;
+                return;
+            }
+            let target = targets[Math.floor(Math.random() * targets.length)];
+
+            // TELEGRAPH first — visible delay before teleport lands
+            let tx = target.x, ty = target.y;
+            const TELEGRAPH_MS = 420;
+            const telegraphSec = TELEGRAPH_MS / 1000;
+
+            // Bright dashed path player → target
+            teleportTrails.push({
+                x1: player.x, y1: player.y, x2: tx, y2: ty,
+                life: telegraphSec + 0.08, maxLife: telegraphSec + 0.08,
+                isTelegraph: true, thick: true
+            });
+            // Outer danger ring on target
+            teleportTrails.push({
+                x1: tx, y1: ty, x2: tx, y2: ty,
+                life: telegraphSec + 0.08, maxLife: telegraphSec + 0.08,
+                isMarker: true, radius: target.radius + 28, pulse: true
+            });
+            // Inner lock ring
+            teleportTrails.push({
+                x1: tx, y1: ty, x2: tx, y2: ty,
+                life: telegraphSec + 0.08, maxLife: telegraphSec + 0.08,
+                isMarker: true, radius: target.radius + 12, pulse: true
+            });
+            spawnFloatingText(tx, ty - 32, "⚔ EXECUTING", "#e9d5ff");
+            spawnParticles(tx, ty, '#c084fc', 6);
+
+            // Shield on activation (does not require kill)
+            if (!player.execShields) player.execShields = [];
+            if (player.execShields.length < 4) {
+                player.execShields.push({ life: 3.0, maxLife: 3.0 });
+                player.execShieldFlash = 0.35;
+                spawnFloatingText(player.x, player.y + 18, `SHIELD ${player.execShields.length}/4`, "#a5b4fc");
+            } else {
+                // Refresh shortest-lived shield
+                let oldest = 0;
+                for (let i = 1; i < player.execShields.length; i++) {
+                    if (player.execShields[i].life < player.execShields[oldest].life) oldest = i;
+                }
+                player.execShields[oldest].life = 3.0;
+                player.execShieldFlash = 0.25;
+            }
+
+            let capturedTarget = target;
+            let startX = player.x, startY = player.y;
+
+            setTimeout(() => {
+                if (!gameRunning || gameOver || floorCleared) return;
+                if (!capturedTarget || capturedTarget._dead || capturedTarget.hp <= 0) {
+                    player.executionChain = 0;
+                    return;
+                }
+                let stillThere = enemies.some(e => e === capturedTarget && !e._dead);
+                if (!stillThere) {
+                    player.executionChain = 0;
+                    return;
+                }
+
+                // Solid slash trail along the path
+                teleportTrails.push({
+                    x1: startX, y1: startY,
+                    x2: capturedTarget.x, y2: capturedTarget.y,
+                    life: 0.32, maxLife: 0.32, thick: true
+                });
+                // Afterimage at origin
+                teleportTrails.push({
+                    x1: startX, y1: startY, x2: startX, y2: startY,
+                    life: 0.35, maxLife: 0.35, isAfterimage: true
+                });
+
+                let ang = Math.atan2(capturedTarget.y - player.y, capturedTarget.x - player.x);
+                player.x = capturedTarget.x + Math.cos(ang) * 30;
+                player.y = capturedTarget.y + Math.sin(ang) * 30;
+                player.x = Math.max(player.radius, Math.min(ARENA_WIDTH - player.radius, player.x));
+                player.y = Math.max(player.radius, Math.min(ARENA_HEIGHT - player.radius, player.y));
+
+                let isCrit = Math.random() < 0.25;
+                let range = 140;
+                let arc = Math.PI * 0.95;
+                // Wide bright slash arc
+                meleeVisuals.push({
+                    x: player.x, y: player.y, angle: ang, range: range,
+                    arcAngle: arc, isSpecial: true, isExecution: true,
+                    life: 0.28, maxLife: 0.28
+                });
+                // Second thinner flash arc for acuity
+                meleeVisuals.push({
+                    x: player.x, y: player.y, angle: ang, range: range * 0.85,
+                    arcAngle: arc * 0.7, isSpecial: true, isExecution: true,
+                    life: 0.16, maxLife: 0.16
+                });
+                spawnFloatingText(player.x, player.y - 24, isCrit ? "⚡ EXECUTION CRIT!" : "⚔ EXECUTION!", isCrit ? "#fde68a" : "#e9d5ff");
+                triggerScreenShake(isCrit ? 8 : 5, 0.16);
+                spawnParticles(player.x, player.y, '#c084fc', 14);
+                spawnParticles(capturedTarget.x, capturedTarget.y, '#f59e0b', 10);
+
+
+                let killed = false;
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    let e = enemies[i];
+                    if (e._dead) continue;
+                    let dist = Math.hypot(e.x - player.x, e.y - player.y);
+                    if (dist < range + e.radius) {
+                        let a2e = Math.atan2(e.y - player.y, e.x - player.x);
+                        let diff = Math.abs(a2e - ang);
+                        while (diff > Math.PI) diff -= Math.PI * 2;
+                        if (Math.abs(diff) < arc / 2) {
+                            let dmg = 24 * player.damageMult * (1 + (upgrades.damage.level - 1) * 0.15) * 2.8 * getOutgoingDurMult();
+                            if (e.shieldTimer > 0) dmg *= 0.35;
+                            if (e.isBoss) dmg *= 0.72;
+                            else if (e.isFallen) dmg *= 0.80;
+                            if (isCrit) {
+                                let pct = (e.isBoss || e.isFallen) ? 0.28 : 0.65;
+                                dmg += e.maxHp * pct;
+                            }
+                            e.hp -= dmg;
+                            player.hp = Math.min(player.maxHp, player.hp + dmg * player.lifesteal);
+                            spawnParticles(e.x, e.y, '#f59e0b', 10);
+                            if (e.hp <= 0) {
+                                killEnemy(i, 'execution');
+                                killed = true;
+                            }
+                        }
+                    }
+                }
+                if (killed) player.executionChain++;
+                else player.executionChain = 0;
+            }, TELEGRAPH_MS);
+        }
+
+        function activateUltimate() {
+            if (player.ultimateActive) return;
+            player.ultCharge = 0;
+            player.ultimateActive = true;
+            if (player.classType === 'melee') activateTripleSever();
+            else if (player.classType === 'bow') activateKillshot();
+            else if (player.classType === 'magic') activateArcaneSingularity();
+        }
+
+        function activateTripleSever() {
+            player.ultimateTimer = 2.4;
+            player.ultTelegraphs = [];
+            // Three slash lines across arena
+            for (let i = 0; i < 3; i++) {
+                let angle = (Math.PI / 3) * i + (Math.random() - 0.5) * 0.3;
+                let cx = ARENA_WIDTH / 2 + (Math.random() - 0.5) * 100;
+                let cy = ARENA_HEIGHT / 2 + (Math.random() - 0.5) * 100;
+                player.ultTelegraphs.push({
+                    type: 'slash',
+                    angle: angle,
+                    cx: cx, cy: cy,
+                    width: 90,
+                    length: 900,
+                    delay: 0.45 + i * 0.55,
+                    activated: false,
+                    snapshotDone: false
+                });
+            }
+            spawnFloatingText(player.x, player.y - 30, "TRIPLE SEVER!", "#fbbf24");
+            triggerScreenShake(6, 0.3);
+            // Snapshot enemy HP for consistent % damage
+            for (let e of enemies) {
+                e._ultSnapshotHp = e.maxHp;
+            }
+        }
+
+        function activateKillshot() {
+            player.ultimateTimer = 1.6;
+            let targets = getAliveEnemies();
+            if (targets.length === 0) {
+                player.ultimateActive = false;
+                return;
+            }
+            // Highest threat: prefer boss > fallen > strong > highest hp
+            targets.sort((a, b) => {
+                let sa = (a.isBoss ? 10000 : 0) + (a.isFallen ? 5000 : 0) + (a.isStrong ? 1000 : 0) + a.hp;
+                let sb = (b.isBoss ? 10000 : 0) + (b.isFallen ? 5000 : 0) + (b.isStrong ? 1000 : 0) + b.hp;
+                return sb - sa;
+            });
+            let target = targets[0];
+            let ang = Math.atan2(target.y - player.y, target.x - player.x);
+            player.ultTelegraphs = [{
+                type: 'killshot',
+                angle: ang,
+                x1: player.x, y1: player.y,
+                x2: player.x + Math.cos(ang) * 1400,
+                y2: player.y + Math.sin(ang) * 1400,
+                delay: 0.55,
+                activated: false,
+                targetRef: target
+            }];
+            spawnFloatingText(player.x, player.y - 30, "KILLSHOT!", "#38bdf8");
+            triggerScreenShake(5, 0.25);
+        }
+
+        function activateArcaneSingularity() {
+            player.ultimateTimer = 3.5;
+            player.singularity = {
+                x: ARENA_WIDTH / 2,
+                y: ARENA_HEIGHT / 2,
+                radius: 80,
+                life: 3.0,
+                maxLife: 3.0,
+                pulse: 0
+            };
+            spawnFloatingText(ARENA_WIDTH / 2, ARENA_HEIGHT / 2 - 40, "ARCANE SINGULARITY!", "#22d3ee");
+            triggerScreenShake(8, 0.4);
+        }
+
+        function resetClassCombatState() {
+            player.ultCharge = 0;
+            player.execShields = [];
+            player.execShieldFlash = 0;
+            player.invulnTimer = 0;
+            player.lastStandActive = false;
+            player.lastStandReady = true;
+            player.lastStandFloorsUntilReady = 0;
+            player.bloodburnDrain = 0;
+            player.deadeyeActive = false;
+            player.manaCollapseActive = false;
+            player.executionChain = 0;
+            player.ricochetChain = 0;
+            player.ultimateActive = false;
+            player.ultimateTimer = 0;
+            player.ultTelegraphs = [];
+            player.singularity = null;
+            player.killshotScar = null;
+            player.execShields = [];
+            player.execShieldFlash = 0;
+            player.invulnTimer = 0;
+            slashZones = [];
+            teleportTrails = [];
+            ultProjectiles = [];
+            document.getElementById('laststand-banner').classList.add('hidden');
+        }
+
+        function checkLastStand() {
+            if (player.hp <= 0) return;
+            let hpPct = player.hp / player.maxHp;
+
+            // End Deadeye when HP recovers above 50%
+            if (hpPct > 0.50) {
+                if (player.lastStandActive && player.classType === 'bow' && player.deadeyeActive) {
+                    endDeadeye();
+                }
+            }
+
+            // Last Stand only available when floors-until-ready is 0
+            if (player.lastStandFloorsUntilReady > 0 || player.lastStandActive) return;
+            if (!player.lastStandReady) return;
+            if (hpPct > 0.20) return;
+
+            // Activate Last Stand
+            player.lastStandReady = false;
+            player.lastStandActive = true;
+            player.lastStandFloorsUntilReady = 3; // requires 3 floor clears to re-arm
+            const banner = document.getElementById('laststand-banner');
+            banner.classList.remove('hidden');
+
+            if (player.classType === 'melee') {
+                // BLOODBURN
+                player.mana = 0;
+                document.getElementById('laststand-text').innerText = "🔥 BLOODBURN – KILL OR DIE";
+                spawnFloatingText(player.x, player.y, "BLOODBURN!", "#ef4444");
+                triggerScreenShake(8, 0.3);
+            } else if (player.classType === 'bow') {
+                // DEADEYE + brief invuln
+                player.deadeyeActive = true;
+                player.invulnTimer = 2.5;
+                document.getElementById('laststand-text').innerText = "👁 DEADEYE – STAND AND DELIVER";
+                spawnFloatingText(player.x, player.y, "DEADEYE!", "#38bdf8");
+                spawnFloatingText(player.x, player.y - 20, "INVULN!", "#fef08a");
+                triggerScreenShake(5, 0.2);
+            } else if (player.classType === 'magic') {
+                // MANA COLLAPSE + brief invuln
+                player.manaCollapseActive = true;
+                player.mana = player.maxMana;
+                player.invulnTimer = 2.5;
+                document.getElementById('laststand-text').innerText = "💥 MANA COLLAPSE – CHAOS UNLEASHED";
+                spawnFloatingText(player.x, player.y, "MANA COLLAPSE!", "#22d3ee");
+                spawnFloatingText(player.x, player.y - 20, "INVULN!", "#fef08a");
+                triggerScreenShake(6, 0.25);
+            }
+        }
+
+        function endDeadeye() {
+            player.deadeyeActive = false;
+            player.lastStandActive = false;
+            player.invulnTimer = 0;
+            document.getElementById('laststand-banner').classList.add('hidden');
+            spawnFloatingText(player.x, player.y, "DEADEYE ENDED", "#38bdf8");
+        }
+
+        function updateUltimate(dt) {
+            if (!player.ultimateActive) return;
+            player.ultimateTimer -= dt;
+
+            // Process telegraphs
+            for (let t of player.ultTelegraphs) {
+                t.delay -= dt;
+                if (t.delay <= 0 && !t.activated) {
+                    t.activated = true;
+                    if (t.type === 'slash') {
+                        // Triple Sever slash impact
+                        let pct = 0.33;
+                        for (let i = enemies.length - 1; i >= 0; i--) {
+                            let e = enemies[i];
+                            if (e._dead) continue;
+                            // Distance from point to line segment through center
+                            let dx = Math.cos(t.angle), dy = Math.sin(t.angle);
+                            let fx = e.x - t.cx, fy = e.y - t.cy;
+                            let proj = fx * dx + fy * dy;
+                            let cx = t.cx + dx * proj, cy = t.cy + dy * proj;
+                            let dist = Math.hypot(e.x - cx, e.y - cy);
+                            if (dist < t.width / 2 + e.radius && Math.abs(proj) < t.length / 2) {
+                                let base = e._ultSnapshotHp || e.maxHp;
+                                let dmg = base * pct;
+                                if (e.isBoss || e.isFallen) dmg *= 0.55;
+                                e.hp -= dmg;
+                                spawnParticles(e.x, e.y, '#fbbf24', 12);
+                                if (e.hp <= 0) killEnemy(i, 'ultimate');
+                            }
+                        }
+                        slashZones.push({ angle: t.angle, cx: t.cx, cy: t.cy, width: t.width, length: t.length, life: 0.35, maxLife: 0.35 });
+                        triggerScreenShake(10, 0.2);
+                        spawnFloatingText(t.cx, t.cy, "SEVER!", "#fbbf24");
+                    } else if (t.type === 'killshot') {
+                        ultProjectiles.push({
+                            x: t.x1, y: t.y1,
+                            vx: Math.cos(t.angle) * 1400,
+                            vy: Math.sin(t.angle) * 1400,
+                            radius: 22,
+                            damage: 24 * player.damageMult * (1 + (upgrades.damage.level - 1) * 0.15) * 8 * getOutgoingDurMult(),
+                            percentDamage: 0.22,
+                            life: 1.2,
+                            isKillshot: true,
+                            pierced: new Set()
+                        });
+                        player.killshotScar = {
+                            x1: t.x1, y1: t.y1, x2: t.x2, y2: t.y2,
+                            angle: t.angle, life: 2.6, maxLife: 2.6, width: 80
+                        };
+                        // Clear telegraphs so the line does not linger
+                        player.ultTelegraphs = [];
+                        player.ultimateTimer = 0.15;
+                        spawnFloatingText(player.x, player.y, "KILLSHOT FIRED!", "#38bdf8");
+                        triggerScreenShake(12, 0.3);
+                    }
+                }
+            }
+
+            // Singularity update
+            if (player.singularity) {
+                let s = player.singularity;
+                s.life -= dt;
+                s.pulse += dt * 8;
+                // Pull enemies
+                for (let e of enemies) {
+                    if (e._dead) continue;
+                    let dx = s.x - e.x, dy = s.y - e.y;
+                    let dist = Math.hypot(dx, dy) || 1;
+                    let pull = (1 - Math.min(1, dist / 400)) * 320 * dt;
+                    e.vx += (dx / dist) * pull;
+                    e.vy += (dy / dist) * pull;
+                }
+                // Frame-rate independent spawn timers (time-based, not per-frame random)
+                if (s.spawnTimerSpecial === undefined) s.spawnTimerSpecial = 0.12;
+                if (s.spawnTimerBasic === undefined) s.spawnTimerBasic = 0.08;
+                s.spawnTimerSpecial -= dt;
+                s.spawnTimerBasic -= dt;
+                if (s.spawnTimerSpecial <= 0) {
+                    s.spawnTimerSpecial = 0.14 + Math.random() * 0.08;
+                    let ang = Math.random() * Math.PI * 2;
+                    projectiles.push({
+                        x: s.x, y: s.y,
+                        vx: Math.cos(ang) * 560, vy: Math.sin(ang) * 560,
+                        radius: 9,
+                        damage: 24 * player.damageMult * (1 + (upgrades.damage.level - 1) * 0.15) * 1.15 * getOutgoingDurMult(),
+                        life: 2.8, isPlayer: true, isMagic: true, isHoming: true,
+                        bouncesLeft: 6, pierces: 4, isSpecial: true,
+                        canFracture: true, homeStrength: 0.2, singularityRefreshed: true
+                    });
+                }
+                if (s.spawnTimerBasic <= 0) {
+                    s.spawnTimerBasic = 0.09 + Math.random() * 0.05;
+                    let ang = Math.random() * Math.PI * 2;
+                    let baseDmg = 24 * player.damageMult * (1 + (upgrades.damage.level - 1) * 0.15) * getOutgoingDurMult();
+                    projectiles.push({
+                        x: s.x, y: s.y,
+                        vx: Math.cos(ang) * 420, vy: Math.sin(ang) * 420,
+                        radius: 7,
+                        damage: baseDmg * 0.9, baseDamage: baseDmg * 0.9,
+                        life: 2.0, isPlayer: true, isMagic: true,
+                        isHoming: Math.random() < 0.45,
+                        bouncesLeft: 3, pierces: 3, isSpecial: false,
+                        canFracture: true, fractureChance: 0.18,
+                        homeStrength: 0.08, singularityRefreshed: true
+                    });
+                }
+                if (s.life <= 0) {
+                    // Final burst
+                    for (let i = enemies.length - 1; i >= 0; i--) {
+                        let e = enemies[i];
+                        if (e._dead) continue;
+                        let dist = Math.hypot(e.x - s.x, e.y - s.y);
+                        if (dist < 180 + e.radius) {
+                            let dmg = e.maxHp * ((e.isBoss || e.isFallen) ? 0.18 : 0.35);
+                            e.hp -= dmg;
+                            spawnParticles(e.x, e.y, '#22d3ee', 14);
+                            if (e.hp <= 0) killEnemy(i, 'ultimate');
+                        }
+                    }
+                    spawnParticles(s.x, s.y, '#22d3ee', 40);
+                    triggerScreenShake(14, 0.4);
+                    player.singularity = null;
+                    player.ultimateActive = false;
+                    player.ultTelegraphs = [];
+                    if (player.ultCharge >= player.ultMax) {
+                        activateUltimate();
+                    }
+                }
+            }
+
+            // Killshot scar: gravity pull + slow (intentional linger)
+            if (player.killshotScar) {
+                let sc = player.killshotScar;
+                sc.life -= dt;
+                let dx = Math.cos(sc.angle), dy = Math.sin(sc.angle);
+                for (let e of enemies) {
+                    if (e._dead) continue;
+                    let fx = e.x - sc.x1, fy = e.y - sc.y1;
+                    let proj = fx * dx + fy * dy;
+                    let cx = sc.x1 + dx * proj, cy = sc.y1 + dy * proj;
+                    let dist = Math.hypot(e.x - cx, e.y - cy);
+                    let pathLen = Math.hypot(sc.x2 - sc.x1, sc.y2 - sc.y1);
+                    if (dist < sc.width && proj > 0 && proj < pathLen) {
+                        let strength = (1 - dist / sc.width);
+                        // Pull toward lane
+                        let pull = strength * 220 * dt;
+                        e.vx += ((cx - e.x) / (dist || 1)) * pull;
+                        e.vy += ((cy - e.y) / (dist || 1)) * pull;
+                        // Slow enemies in the lingering path
+                        e.vx *= Math.max(0.55, 1 - 1.8 * dt);
+                        e.vy *= Math.max(0.55, 1 - 1.8 * dt);
+                        e._killshotSlowed = 0.15; // brief visual flag
+                    }
+                }
+                if (sc.life <= 0) player.killshotScar = null;
+            }
+
+            if (player.ultimateTimer <= 0 && !player.singularity) {
+                player.ultimateActive = false;
+                player.ultTelegraphs = [];
+                player.killshotScar = player.killshotScar; // scar may continue briefly via its own life
+                // Safe delayed activation if meter filled during this Ultimate
+                if (player.ultCharge >= player.ultMax) {
+                    activateUltimate();
+                }
+            }
+        }
+
+
+
+
+        // Durability scaling: 100% = max benefit, ~5% = minimal
+        // Clamped so 0-5% is treated as floor (barely functional gear)
+        function getDurabilityFactor() {
+            let d = Math.max(5, Math.min(100, player.durability));
+            // Map 5..100 → 0..1
+            return (d - 5) / 95;
+        }
+        // Outgoing damage multiplier: 0.55 at 5% dur → 1.0 at 100%
+        function getOutgoingDurMult() {
+            return 0.55 + 0.45 * getDurabilityFactor();
+        }
+        // Incoming damage taken multiplier: 1.35 at 5% dur → 0.85 at 100%
+        // (high durability reduces damage taken)
+        function getIncomingDurMult() {
+            return 1.35 - 0.50 * getDurabilityFactor();
+        }
+
+        // Consume one Execution shield if available; returns true if damage fully blocked
+        function tryAbsorbWithExecShield() {
+            if (player.invulnTimer > 0) {
+                if (Math.random() < 0.08) spawnFloatingText(player.x, player.y - 16, "IMMUNE!", "#fef08a");
+                return true;
+            }
+            if (!player.execShields || player.execShields.length === 0) return false;
+            player.execShields.pop();
+            player.execShieldFlash = 0.4;
+            spawnFloatingText(player.x, player.y - 16, "SHIELD!", "#a5b4fc");
+            spawnParticles(player.x, player.y, "#818cf8", 10);
+            return true;
+        }
+
+        // RAW amount in; applies absorb + durability once. Returns whether HP decreased.
+        function applyPlayerDamage(amount, source, metadata) {
+            if (!Number.isFinite(player.hp)) {
+                console.error("PLAYER HP ALREADY CORRUPTED", { hp: player.hp, source, metadata, invulnTimer: player.invulnTimer });
+                player.hp = Math.max(0, Number.isFinite(player.maxHp) ? player.maxHp : 1);
+                return false;
+            }
+            if (!Number.isFinite(amount) || amount <= 0) {
+                console.error("NON-FINITE DAMAGE rejected", { amount, source, metadata });
+                return false;
+            }
+            if (tryAbsorbWithExecShield()) return false;
+            let scaled = amount * getIncomingDurMult();
+            if (!Number.isFinite(scaled)) {
+                console.error("DURABILITY SCALED DAMAGE NON-FINITE", { amount, scaled, durability: player.durability, source });
+                return false;
+            }
+            player.hp -= scaled;
+            if (!Number.isFinite(player.hp)) {
+                console.error("HP NON-FINITE AFTER HIT", { scaled, source });
+                player.hp = 0;
+            }
+            if (player.hp <= 0) {
+                player.hp = 0;
+                triggerGameOver();
+            }
+            return true;
+        }
+
+        function spawnParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                let angle = Math.random() * Math.PI * 2;
+                let speed = 50 + Math.random() * 150;
+                particles.push({
+                    x: x, y: y,
+                    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                    radius: 2 + Math.random() * 3,
+                    color: color, life: 0.4 + Math.random() * 0.3
+                });
+            }
+        }
+
+        function triggerGameOver() {
+            gameRunning = false;
+            document.getElementById('go-floors').innerText = currentFloor;
+            document.getElementById('go-level').innerText = player.level;
+            document.getElementById('go-gold').innerText = player.gold;
+            document.getElementById('game-over-screen').classList.remove('hidden');
+        }
+
+        // --- CANVAS RENDER ---
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            let scaleX = canvas.width / ARENA_WIDTH;
+            let scaleY = canvas.height / ARENA_HEIGHT;
+            let scale = Math.min(scaleX, scaleY);
+
+            let offsetX = (canvas.width - ARENA_WIDTH * scale) / 2;
+            let offsetY = (canvas.height - ARENA_HEIGHT * scale) / 2;
+
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(scale, scale);
+
+            if (screenShakeTimer > 0) {
+                ctx.translate((Math.random() - 0.5) * screenShakeIntensity * 4, (Math.random() - 0.5) * screenShakeIntensity * 4);
+            }
+
+            // Arena Background Grid
+            ctx.fillStyle = '#030712';
+            ctx.fillRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, 0, ARENA_WIDTH, ARENA_HEIGHT);
+
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 1;
+            for (let x = 50; x < ARENA_WIDTH; x += 50) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ARENA_HEIGHT); ctx.stroke();
+            }
+            for (let y = 50; y < ARENA_HEIGHT; y += 50) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(ARENA_WIDTH, y); ctx.stroke();
+            }
+
+            // Draw Loot
+            for (let l of lootItems) {
+                ctx.fillStyle = l.type === 'xp' ? '#10b981' : '#f59e0b';
+                ctx.beginPath();
+                ctx.arc(l.x, l.y, l.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
+            // Draw Particles
+            for (let pt of particles) {
+                ctx.fillStyle = pt.color;
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Draw Lightning Chains
+            for (let le of lightningEffects) {
+                let alpha = le.life / le.maxLife;
+                ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(le.x1, le.y1);
+                ctx.lineTo(le.x2, le.y2);
+                ctx.stroke();
+            }
+
+            // Draw Melee Visual Arcs
+            for (let mv of meleeVisuals) {
+                let alpha = mv.life / mv.maxLife;
+                ctx.save();
+                ctx.translate(mv.x, mv.y);
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.arc(0, 0, mv.range, mv.angle - mv.arcAngle / 2, mv.angle + mv.arcAngle / 2);
+                ctx.closePath();
+                if (mv.isEnemy) {
+                    ctx.fillStyle = `rgba(168, 85, 247, ${alpha * 0.35})`;
+                    ctx.strokeStyle = `rgba(192, 132, 252, ${alpha})`;
+                    ctx.lineWidth = 2;
+                } else if (mv.isExecution) {
+                    // High-acuity execution slash
+                    ctx.fillStyle = `rgba(168, 85, 247, ${alpha * 0.5})`;
+                    ctx.strokeStyle = `rgba(253, 224, 71, ${alpha})`;
+                    ctx.lineWidth = 5;
+                } else {
+                    ctx.fillStyle = mv.isSpecial ? `rgba(245, 158, 11, ${alpha * 0.4})` : `rgba(59, 130, 246, ${alpha * 0.3})`;
+                    ctx.strokeStyle = mv.isSpecial ? `rgba(251, 191, 36, ${alpha})` : `rgba(147, 197, 253, ${alpha})`;
+                    ctx.lineWidth = mv.isSpecial ? 4 : 2;
+                }
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Draw Beam Telegraphs
+            for (let bt of beamTelegraphs) {
+                let progress = 1 - (bt.timer / bt.maxTimer);
+                ctx.save();
+                ctx.strokeStyle = `rgba(234, 179, 8, ${0.3 + progress * 0.5})`;
+                ctx.lineWidth = (bt.isBoss ? 4 : 2) + progress * 4;
+                ctx.setLineDash([8, 6]);
+                ctx.beginPath();
+                ctx.moveTo(bt.x1, bt.y1);
+                ctx.lineTo(bt.x2, bt.y2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Draw Beams
+            for (let bm of beams) {
+                let alpha = bm.life / bm.maxLife;
+                ctx.save();
+                ctx.strokeStyle = `rgba(234, 179, 8, ${alpha})`;
+                ctx.lineWidth = bm.width;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(bm.x1, bm.y1);
+                ctx.lineTo(bm.x2, bm.y2);
+                ctx.stroke();
+
+                ctx.strokeStyle = `rgba(254, 240, 138, ${alpha})`;
+                ctx.lineWidth = bm.width * 0.4;
+                ctx.beginPath();
+                ctx.moveTo(bm.x1, bm.y1);
+                ctx.lineTo(bm.x2, bm.y2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Draw Projectiles
+            for (let p of projectiles) {
+                if (p.isPlayer) {
+                    ctx.fillStyle = p.isVortex ? '#38bdf8' : (p.isSpecial ? '#f59e0b' : (p.isMagic ? '#a855f7' : '#60a5fa'));
+                } else {
+                    ctx.fillStyle = '#f87171';
+                }
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = p.isVortex ? '#e0f2fe' : (p.isSpecial ? '#fef08a' : '#ffffff');
+                ctx.lineWidth = p.isVortex ? 2.5 : 1.5;
+                ctx.stroke();
+
+                if (p.isVortex) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius + 8, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
+            // Draw Enemies
+            for (let e of enemies) {
+                ctx.save();
+                ctx.translate(e.x, e.y);
+                ctx.fillStyle = e.color;
+                ctx.strokeStyle = e.shieldTimer > 0 ? '#f43f5e' : (e.stunTimer > 0 ? '#a855f7' : (e.isBoss || e.isFallen ? '#fbbf24' : '#ffffff'));
+                ctx.lineWidth = e.shieldTimer > 0 ? 4 : (e.isBoss || e.isFallen ? 3.5 : 2);
+
+                drawPolygon(0, 0, e.radius, getPolygonSides(e.shape));
+                ctx.fill();
+                ctx.stroke();
+
+                if (e.isBoss || e.isFallen) {
+                    ctx.fillStyle = e.isFallen ? '#c084fc' : '#fbbf24';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -e.radius - 8);
+                    ctx.lineTo(-6, -e.radius - 2);
+                    ctx.lineTo(6, -e.radius - 2);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                if (e.shieldTimer > 0) {
+                    ctx.strokeStyle = 'rgba(244, 63, 94, 0.6)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, e.radius + 6, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // HP Mini Bar
+                let barW = e.isBoss || e.isFallen ? 40 : 30;
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(-barW/2, -e.radius - 12, barW, 5);
+                let hpRatio = Math.max(0, e.hp / e.maxHp);
+                ctx.fillStyle = e.isFallen ? '#a855f7' : (e.isBoss ? '#f59e0b' : '#ef4444');
+                ctx.fillRect(-barW/2, -e.radius - 12, barW * hpRatio, 5);
+
+                ctx.restore();
+            }
+
+            // Draw Player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            // Invuln flash ring (Sharpshooter / Arcane Weaver Last Stand)
+            if (player.invulnTimer > 0) {
+                let pulse = 0.5 + 0.5 * Math.sin(performance.now() / 80);
+                ctx.beginPath();
+                ctx.arc(0, 0, player.radius + 14, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(254, 240, 138, ${0.4 + pulse * 0.5})`;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+            // Last Stand auras
+            if (player.lastStandActive && player.classType === 'melee') {
+                ctx.beginPath();
+                ctx.arc(0, 0, player.radius + 10, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(248, 113, 113, 0.7)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else if (player.deadeyeActive) {
+                ctx.beginPath();
+                ctx.arc(0, 0, player.radius + 10, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.22)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(125, 211, 252, 0.75)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else if (player.manaCollapseActive) {
+                ctx.beginPath();
+                ctx.arc(0, 0, player.radius + 12, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.22)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(103, 232, 249, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            ctx.fillStyle = player.deadeyeActive ? '#38bdf8' : (player.manaCollapseActive ? '#22d3ee' : ((player.lastStandActive && player.classType === 'melee') ? '#f87171' : player.color));
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = player.deadeyeActive ? '#e0f2fe' : (player.manaCollapseActive ? '#a5f3fc' : ((player.lastStandActive && player.classType === 'melee') ? '#fecaca' : '#ffffff'));
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(player.radius * 0.4, 0, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Execution shields — stacked hexagonal rings, indigo/gold
+            if (player.execShields && player.execShields.length > 0) {
+                let n = player.execShields.length;
+                for (let i = 0; i < n; i++) {
+                    let sh = player.execShields[i];
+                    let a = Math.min(1, sh.life / 1.2) * 0.85;
+                    let r = player.radius + 11 + i * 5;
+                    ctx.save();
+                    ctx.strokeStyle = `rgba(129, 140, 248, ${a})`;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    for (let s = 0; s < 6; s++) {
+                        let ang = (s / 6) * Math.PI * 2 - Math.PI / 2;
+                        let px = Math.cos(ang) * r;
+                        let py = Math.sin(ang) * r;
+                        if (s === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                    // Gold accent ticks
+                    ctx.strokeStyle = `rgba(253, 224, 71, ${a * 0.7})`;
+                    ctx.lineWidth = 1.5;
+                    for (let s = 0; s < 6; s++) {
+                        let ang = (s / 6) * Math.PI * 2 - Math.PI / 2;
+                        ctx.beginPath();
+                        ctx.moveTo(Math.cos(ang) * (r - 2), Math.sin(ang) * (r - 2));
+                        ctx.lineTo(Math.cos(ang) * (r + 3), Math.sin(ang) * (r + 3));
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+                if (player.execShieldFlash > 0) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, player.radius + 14 + n * 5, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(199, 210, 254, ${player.execShieldFlash * 2})`;
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+
+            // Draw Floating Text
+            for (let ft of floatingTexts) {
+                let alpha = ft.life / ft.maxLife;
+                ctx.fillStyle = ft.color;
+                ctx.font = 'bold 12px Outfit, sans-serif';
+                ctx.globalAlpha = alpha;
+                ctx.fillText(ft.text, ft.x - 15, ft.y);
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Teleport trails / Execution telegraphs (high acuity)
+            for (let tr of teleportTrails) {
+                let a = tr.life / tr.maxLife;
+                if (tr.isAfterimage) {
+                    ctx.save();
+                    ctx.globalAlpha = a * 0.55;
+                    ctx.fillStyle = '#a855f7';
+                    ctx.beginPath();
+                    ctx.arc(tr.x1, tr.y1, player.radius * 0.9, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#e9d5ff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.restore();
+                } else if (tr.isMarker) {
+                    let r = (tr.radius || 28) * (0.95 + (1 - a) * 0.25);
+                    ctx.save();
+                    // Glow ring
+                    ctx.strokeStyle = `rgba(233, 213, 255, ${a * 0.95})`;
+                    ctx.lineWidth = 3.5;
+                    ctx.setLineDash([7, 5]);
+                    ctx.beginPath();
+                    ctx.arc(tr.x1, tr.y1, r, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // Solid inner ring
+                    ctx.strokeStyle = `rgba(168, 85, 247, ${a * 0.8})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(tr.x1, tr.y1, r * 0.7, 0, Math.PI * 2);
+                    ctx.stroke();
+                    // Crosshair
+                    ctx.strokeStyle = `rgba(253, 224, 71, ${a})`;
+                    ctx.lineWidth = 2;
+                    let ch = 14;
+                    ctx.beginPath();
+                    ctx.moveTo(tr.x1 - ch, tr.y1); ctx.lineTo(tr.x1 + ch, tr.y1);
+                    ctx.moveTo(tr.x1, tr.y1 - ch); ctx.lineTo(tr.x1, tr.y1 + ch);
+                    ctx.stroke();
+                    ctx.restore();
+                } else if (tr.isTelegraph) {
+                    ctx.save();
+                    // Outer glow line
+                    ctx.strokeStyle = `rgba(233, 213, 255, ${a * 0.45})`;
+                    ctx.lineWidth = tr.thick ? 10 : 7;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(tr.x1, tr.y1);
+                    ctx.lineTo(tr.x2, tr.y2);
+                    ctx.stroke();
+                    // Dashed core
+                    ctx.strokeStyle = `rgba(192, 132, 252, ${a * 0.95})`;
+                    ctx.lineWidth = tr.thick ? 4 : 3;
+                    ctx.setLineDash([12, 7]);
+                    ctx.beginPath();
+                    ctx.moveTo(tr.x1, tr.y1);
+                    ctx.lineTo(tr.x2, tr.y2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    // Arrow tip at target end
+                    let dx = tr.x2 - tr.x1, dy = tr.y2 - tr.y1;
+                    let len = Math.hypot(dx, dy) || 1;
+                    let ux = dx / len, uy = dy / len;
+                    ctx.fillStyle = `rgba(253, 224, 71, ${a})`;
+                    ctx.beginPath();
+                    ctx.moveTo(tr.x2, tr.y2);
+                    ctx.lineTo(tr.x2 - ux * 14 - uy * 7, tr.y2 - uy * 14 + ux * 7);
+                    ctx.lineTo(tr.x2 - ux * 14 + uy * 7, tr.y2 - uy * 14 - ux * 7);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                } else {
+                    // Solid impact trail with glow
+                    ctx.save();
+                    ctx.strokeStyle = `rgba(233, 213, 255, ${a * 0.5})`;
+                    ctx.lineWidth = tr.thick ? 12 : 8;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(tr.x1, tr.y1);
+                    ctx.lineTo(tr.x2, tr.y2);
+                    ctx.stroke();
+                    ctx.strokeStyle = `rgba(168, 85, 247, ${a})`;
+                    ctx.lineWidth = tr.thick ? 5 : 3.5;
+                    ctx.beginPath();
+                    ctx.moveTo(tr.x1, tr.y1);
+                    ctx.lineTo(tr.x2, tr.y2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            }
+
+            // Slash zones (Triple Sever)
+            for (let sz of slashZones) {
+                let a = sz.life / sz.maxLife;
+                ctx.save();
+                ctx.translate(sz.cx, sz.cy);
+                ctx.rotate(sz.angle);
+                ctx.fillStyle = `rgba(251, 191, 36, ${a * 0.45})`;
+                ctx.fillRect(-sz.length / 2, -sz.width / 2, sz.length, sz.width);
+                ctx.strokeStyle = `rgba(253, 224, 71, ${a})`;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(-sz.length / 2, -sz.width / 2, sz.length, sz.width);
+                ctx.restore();
+            }
+
+            // Ultimate telegraphs (before impact)
+            for (let t of player.ultTelegraphs) {
+                if (t.activated) continue;
+                if (t.type === 'slash') {
+                    ctx.save();
+                    ctx.translate(t.cx, t.cy);
+                    ctx.rotate(t.angle);
+                    ctx.strokeStyle = 'rgba(251, 191, 36, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([12, 8]);
+                    ctx.strokeRect(-t.length / 2, -t.width / 2, t.length, t.width);
+                    ctx.restore();
+                } else if (t.type === 'killshot') {
+                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+                    ctx.lineWidth = 6;
+                    ctx.setLineDash([16, 10]);
+                    ctx.beginPath();
+                    ctx.moveTo(t.x1, t.y1);
+                    ctx.lineTo(t.x2, t.y2);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+
+            // Singularity
+            if (player.singularity) {
+                let s = player.singularity;
+                let pulse = 1 + Math.sin(s.pulse) * 0.15;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.radius * pulse, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(34, 211, 238, 0.25)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(34, 211, 238, 0.8)';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, 20, 0, Math.PI * 2);
+                ctx.fillStyle = '#22d3ee';
+                ctx.fill();
+            }
+
+            // Killshot gravitational scar
+            if (player.killshotScar) {
+                let sc = player.killshotScar;
+                let a = sc.life / sc.maxLife;
+                ctx.save();
+                // Wide slow-zone glow
+                ctx.strokeStyle = `rgba(56, 189, 248, ${a * 0.28})`;
+                ctx.lineWidth = sc.width;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(sc.x1, sc.y1);
+                ctx.lineTo(sc.x2, sc.y2);
+                ctx.stroke();
+                // Core lane
+                ctx.strokeStyle = `rgba(125, 211, 252, ${a * 0.65})`;
+                ctx.lineWidth = 5;
+                ctx.setLineDash([12, 8]);
+                ctx.beginPath();
+                ctx.moveTo(sc.x1, sc.y1);
+                ctx.lineTo(sc.x2, sc.y2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                // Edge markers
+                ctx.strokeStyle = `rgba(186, 230, 253, ${a * 0.4})`;
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(sc.x1, sc.y1);
+                ctx.lineTo(sc.x2, sc.y2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Ult projectiles
+            for (let up of ultProjectiles) {
+                ctx.beginPath();
+                ctx.arc(up.x, up.y, up.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#38bdf8';
+                ctx.fill();
+                ctx.strokeStyle = '#e0f2fe';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function getPolygonSides(shape) {
+            switch (shape) {
+                case 'triangle': return 3;
+                case 'square': return 4;
+                case 'diamond': return 4;
+                case 'pentagon': return 5;
+                case 'hexagon': return 6;
+                case 'octagon': return 8;
+                default: return 4;
+            }
+        }
+
+        function drawPolygon(x, y, radius, sides) {
+            ctx.beginPath();
+            let angleOffset = (sides === 4) ? 0 : -Math.PI / 2;
+            for (let i = 0; i < sides; i++) {
+                let angle = (i * 2 * Math.PI) / sides + angleOffset;
+                let px = x + radius * Math.cos(angle);
+                let py = y + radius * Math.sin(angle);
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+        }
+
+        // --- HUD & SHOP CONTROL ---
+        function updateHUD() {
+            document.getElementById('hud-floor').innerText = currentFloor;
+            document.getElementById('hud-level').innerText = player.level;
+            document.getElementById('hud-gold').innerText = player.gold;
+        }
+
+        function updateHUDBarElements() {
+            let hpPct = Math.max(0, Math.min(100, (player.hp / player.maxHp) * 100));
+            document.getElementById('hud-hp-bar').style.width = `${hpPct}%`;
+            document.getElementById('hud-hp-text').innerText = `${Math.round(player.hp)}/${player.maxHp}`;
+
+            let manaPct = Math.max(0, Math.min(100, (player.mana / player.maxMana) * 100));
+            document.getElementById('hud-mana-bar').style.width = `${manaPct}%`;
+            document.getElementById('hud-mana-text').innerText = `${Math.round(player.mana)}/${player.maxMana}`;
+
+            let xpPct = Math.min(100, (player.xp / player.xpToNext) * 100);
+            document.getElementById('hud-xp-bar').style.width = `${xpPct}%`;
+            document.getElementById('hud-xp-text').innerText = `${Math.round(xpPct)}%`;
+
+            let ultPct = Math.min(100, (player.ultCharge / player.ultMax) * 100);
+            document.getElementById('hud-ult-bar').style.width = `${ultPct}%`;
+            document.getElementById('hud-ult-text').innerText = player.ultimateActive ? '!!!' : (ultPct >= 100 ? 'MAX' : 'ULT');
+
+            let durPct = Math.max(0, Math.min(100, player.durability));
+            document.getElementById('hud-dur-bar').style.width = `${durPct}%`;
+            document.getElementById('hud-dur-text').innerText = `${Math.round(durPct)}%`;
+            // Color shift when low
+            let durBar = document.getElementById('hud-dur-bar');
+            if (durPct < 25) durBar.className = 'bg-gradient-to-r from-rose-700 to-red-500 h-full transition-all duration-150 rounded-full';
+            else if (durPct < 50) durBar.className = 'bg-gradient-to-r from-orange-600 to-amber-500 h-full transition-all duration-150 rounded-full';
+            else durBar.className = 'bg-gradient-to-r from-amber-600 to-yellow-400 h-full transition-all duration-150 rounded-full';
+        }
+
+        const shopModal = document.getElementById('shop-modal');
+
+        function openShop() {
+            gameRunning = false;
+            shopModal.classList.remove('hidden');
+            document.getElementById('shop-gold-display').innerText = `🪙 ${player.gold}`;
+            document.getElementById('durability-text').innerText = `Durability: ${Math.round(player.durability)}%`;
+            document.getElementById('repair-cost').innerText = Math.round((100 - player.durability) * 0.8);
+            document.getElementById('reroll-cost').innerText = 50 + currentFloor * 10;
+            document.getElementById('toggle-autorepair').checked = player.autoRepair;
+            
+            document.getElementById('up-dmg-lvl').innerText = upgrades.damage.level;
+            document.getElementById('up-dmg-cost').innerText = upgrades.damage.cost;
+            document.getElementById('up-spd-lvl').innerText = upgrades.speed.level;
+            document.getElementById('up-spd-cost').innerText = upgrades.speed.cost;
+            document.getElementById('up-hp-lvl').innerText = upgrades.hp.level;
+            document.getElementById('up-hp-cost').innerText = upgrades.hp.cost;
+        }
+
+        function closeShop() {
+            shopModal.classList.add('hidden');
+            if (floorCleared) {
+                floorCleared = false;
+                // Auto-repair when leaving shop after clear
+                if (player.autoRepair && player.durability < 100) {
+                    let cost = Math.round((100 - player.durability) * 0.8);
+                    if (player.gold >= cost) {
+                        player.gold -= cost;
+                        player.durability = 100;
+                        showNotification('Auto-Repaired equipment!');
+                        updateHUD();
+                    }
+                }
+                if (player.lastStandFloorsUntilReady > 0) {
+                    player.lastStandFloorsUntilReady--;
+                    if (player.lastStandFloorsUntilReady <= 0) {
+                        player.lastStandReady = true;
+                        player.lastStandFloorsUntilReady = 0;
+                        showNotification('Last Stand recharged!');
+                    }
+                }
+                if (player.lastStandActive) {
+                    player.lastStandActive = false;
+                    player.deadeyeActive = false;
+                    player.manaCollapseActive = false;
+                    document.getElementById('laststand-banner').classList.add('hidden');
+                }
+                startFloor(currentFloor + 1);
+            }
+            gameRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.getElementById('btn-open-shop').addEventListener('click', openShop);
+        document.getElementById('btn-open-shop-from-clear').addEventListener('click', () => {
+            document.getElementById('floor-clear-overlay').classList.add('hidden');
+            openShop();
+        });
+        document.getElementById('btn-close-shop').addEventListener('click', closeShop);
+        document.getElementById('btn-close-shop-bottom').addEventListener('click', closeShop);
+
+        document.getElementById('btn-next-floor').addEventListener('click', () => {
+            // Auto-repair on floor clear (fixed)
+            if (player.autoRepair && player.durability < 100) {
+                let cost = Math.round((100 - player.durability) * 0.8);
+                if (player.gold >= cost) {
+                    player.gold -= cost;
+                    player.durability = 100;
+                    showNotification('Auto-Repaired equipment!');
+                    updateHUD();
+                } else {
+                    showNotification('Not enough gold to auto-repair!');
+                }
+            }
+            // Last Stand re-arm: 3 floor clears required
+            if (player.lastStandFloorsUntilReady > 0) {
+                player.lastStandFloorsUntilReady--;
+                if (player.lastStandFloorsUntilReady <= 0) {
+                    player.lastStandReady = true;
+                    player.lastStandFloorsUntilReady = 0;
+                    showNotification('Last Stand recharged!');
+                }
+            }
+            // End active last stands cleanly between floors
+            if (player.lastStandActive) {
+                player.lastStandActive = false;
+                player.deadeyeActive = false;
+                player.manaCollapseActive = false;
+                document.getElementById('laststand-banner').classList.add('hidden');
+            }
+            document.getElementById('floor-clear-overlay').classList.add('hidden');
+            startFloor(currentFloor + 1);
+            gameRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        });
+
+        document.getElementById('toggle-autorepair').addEventListener('change', (e) => {
+            player.autoRepair = e.target.checked;
+            document.getElementById('pause-toggle-autorepair').checked = player.autoRepair;
+        });
+
+        document.getElementById('btn-repair').addEventListener('click', () => {
+            let cost = Math.round((100 - player.durability) * 0.8);
+            if (player.durability >= 100) {
+                showNotification('Equipment is at 100% durability!');
+                return;
+            }
+            if (player.gold >= cost) {
+                player.gold -= cost;
+                player.durability = 100;
+                showNotification('Equipment repaired!');
+                openShop();
+            } else {
+                showNotification('Not enough gold to repair!');
+            }
+        });
+
+        document.getElementById('btn-reroll-class').addEventListener('click', () => {
+            let cost = 50 + currentFloor * 10;
+            if (player.gold >= cost) {
+                player.gold -= cost;
+                const classes = ['melee', 'bow', 'magic'];
+                let filtered = classes.filter(c => c !== player.classType);
+                player.classType = filtered[Math.floor(Math.random() * filtered.length)];
+                player.lifesteal = player.classType === 'melee' ? 0.14 : 0.06;
+                resetClassCombatState();
+                showNotification(`Switched class to ${player.classType.toUpperCase()}!`);
+                openShop();
+            } else {
+                showNotification('Not enough gold to reroll class!');
+            }
+        });
+
+        document.querySelectorAll('.upgrade-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                let type = e.currentTarget.getAttribute('data-upgrade');
+                let up = upgrades[type];
+                if (player.gold >= up.cost) {
+                    player.gold -= up.cost;
+                    up.level++;
+                    up.cost = Math.round(up.cost * 1.4);
+
+                    if (type === 'damage') player.damageMult += 0.15;
+                    if (type === 'speed') player.speedMult += 0.10;
+                    if (type === 'hp') {
+                        player.maxHp += 25;
+                        player.hp = Math.min(player.maxHp, player.hp + 25);
+                    }
+
+                    showNotification(`Upgrade purchased!`);
+                    openShop();
+                } else {
+                    showNotification('Not enough gold for upgrade!');
+                }
+            });
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            document.getElementById('game-over-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
